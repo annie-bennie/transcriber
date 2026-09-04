@@ -1,0 +1,165 @@
+# =====================================================================
+#  Transcription results
+# =====================================================================
+# deny by default. a transcript is somebody else's conversation: names, places, whatever
+# was said. nothing of that kind may ever reach git history, so whole formats are blocked
+# and only files that cannot carry recorded content are let back in by name.
+
+# json is the main artefact — it holds the full text of a recording.
+*.json
+# tool configs, which cannot contain data, are the exception.
+!/.github/**/*.json
+!/.claude/**/*.json
+!/.vscode/launch.json
+!/.vscode/extensions.json
+
+# txt / srt / vtt / csv are derived from the same text.
+*.txt
+*.srt
+*.vtt
+*.csv
+*.tsv
+# dependency lists are the only txt that belongs here.
+!requirements*.txt
+!constraints*.txt
+
+# run logs: they carry file names and the path to the recordings.
+transcribe_log_*.txt
+logs/
+
+# the plan is working notes, not documentation.
+PLAN.md
+
+# =====================================================================
+#  Media
+# =====================================================================
+# source recordings. even a short excerpt is somebody's conversation, and gigabytes of
+# video have no place in git either way.
+*.mp4
+*.avi
+*.mov
+*.mkv
+*.webm
+*.m4v
+*.wav
+*.mp3
+*.m4a
+*.flac
+*.ogg
+*.aac
+*.wma
+*.opus
+
+# folders all of that usually lands in
+transcripts/
+out/
+output/
+sample/
+samples/
+data/
+records/
+recordings/
+clients/
+sessions/
+
+# =====================================================================
+#  Secrets
+# =====================================================================
+.env
+.env.*
+!.env.example
+*.token
+hf_token*
+.huggingface/
+secrets.*
+
+# =====================================================================
+#  Model weights and caches
+# =====================================================================
+*.pt
+*.pth
+*.bin
+*.onnx
+*.safetensors
+*.npz
+*.ckpt
+models/
+checkpoints/
+.cache/
+
+# =====================================================================
+#  Python
+# =====================================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+develop-eggs/
+downloads/
+eggs/
+.eggs/
+sdist/
+wheels/
+*.egg-info/
+*.egg
+.installed.cfg
+MANIFEST
+
+# environments
+.venv/
+venv/
+env/
+ENV/
+.conda/
+
+# tests and linters
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.dmypy.json
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+.hypothesis/
+
+# jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# =====================================================================
+#  Backups and editor leftovers
+# =====================================================================
+*.bak
+*.prev
+*.orig
+*.rej
+*.tmp
+*.temp
+*~
+*.pre-*
+*.swp
+*.swo
+
+.vscode/*
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# =====================================================================
+#  OS
+# =====================================================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+desktop.ini
+$RECYCLE.BIN/

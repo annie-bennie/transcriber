@@ -1,0 +1,51 @@
+# Dependencies of the main environment: recognition, pyannote diarization, emotion, acoustics.
+#
+# this file is enough to get everything working. for more accurate speaker labelling there is
+# an optional second environment with diarizen — see requirements-diarizen.txt. it has to be
+# separate because diarizen brings its own fork of pyannote-audio 3.1.1, incompatible with the
+# pyannote.audio 4.x used here.
+#
+# IMPORTANT: torch and torchaudio are deliberately left unpinned — install them separately and
+# for your own hardware, or you may end up with a build that does not support your gpu.
+# torch first, everything else after:
+#
+#   NVIDIA (CUDA 13.0, current cards up to Blackwell):
+#     pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu130
+#   NVIDIA (CUDA 12.8):
+#     pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu128
+#   apple silicon and cpu:
+#     pip install torch torchaudio
+#
+#   pip install -r requirements.txt
+#
+# ffmpeg is also needed on the PATH; it does not come from pip:
+#   windows: winget install Gyan.FFmpeg
+#   macos:   brew install ffmpeg
+#   ubuntu:  sudo apt install ffmpeg
+
+# speech recognition
+openai-whisper>=20250625
+
+# diarization: who speaks when. 4.x can do community-1, 3.x only 3.1
+pyannote.audio>=4.0.3
+
+# the emotion scales model (arousal, dominance, valence)
+transformers>=4.50.0
+
+# reading and writing audio
+soundfile>=0.13.1
+numpy>=2.0
+
+# memory reporting in the log. without it the pipeline runs, it just says nothing about ram
+psutil>=7.0
+
+# --- optional: voice quality (jitter / shimmer / HNR) ------------------------------
+# without it the pipeline runs, it just does not compute those three values.
+#   pip install praat-parselmouth
+# praat-parselmouth>=0.4
+
+# --- optional: running the open benchmarks (tools/benchmark.py) --------------------
+# the pipeline itself does not need these; install them only to measure WER and DER.
+#   pip install datasets jiwer
+# datasets>=4.0
+# jiwer>=3.0
