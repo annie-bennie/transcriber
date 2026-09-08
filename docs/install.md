@@ -36,6 +36,7 @@ optional extras:
 ```bash
 pip install -e ".[voice]"   # jitter, shimmer, HNR
 pip install -e ".[bench]"   # public-dataset benchmarks, tools/benchmark.py
+pip install -e ".[url]"     # a youtube link or playlist as the input
 ```
 
 ffmpeg has to be on the PATH:

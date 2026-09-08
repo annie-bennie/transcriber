@@ -9,6 +9,7 @@ import gc
 import json
 import os
 import subprocess
+import time
 import tempfile
 import traceback
 from pathlib import Path
@@ -21,8 +22,8 @@ from .config import (DEFAULT_EMBEDDING_MODEL, DEFAULT_DIARIZEN_MODEL, DEFAULT_LA
                      DIARIZE_MODEL_DIARIZEN, EMOTION_UNIT_MIN, EMOTION_UNIT_TARGET,
                      SAMPLE_RATE, SPEAKER_REFINE_MIN_MARGIN)
 from .emotion import DEFAULT_EMOTION_DIM_MODEL, DimensionalEmotion
-from .logging import log, mem_snapshot
-from .render import write_transcript_txt
+from .logging import Progress, log, mem_snapshot
+from .render import transcript_path, write_transcript_txt
 from .speakers import (build_emotion_units, build_segments, build_turns,
                        describe_suspects, diarization_turns, refine_speaker_turns)
 from .state import (SCHEMA_VERSION, load_state, new_state, rebuild_derived,
@@ -32,6 +33,29 @@ from .state import (SCHEMA_VERSION, load_state, new_state, rebuild_derived,
 def _round(value, digits):
     """round() that survives None: some whisper metrics arrive unset."""
     return round(value, digits) if isinstance(value, (int, float)) else None
+
+
+class _PyannoteBar:
+    """Adapter between pyannote's hook and our bar.
+
+    pyannote calls this with a step name and how far through that step it is. the steps run
+    one after another — segmentation, embeddings, clustering — so the bar is relabelled and
+    restarted at each boundary rather than trying to show one total across all of them,
+    which pyannote does not know either.
+    """
+
+    def __init__(self, bar):
+        self.bar = bar
+        self.step = None
+
+    def __call__(self, step_name, step_artifact, file=None, total=None, completed=None):
+        if step_name != self.step:
+            self.step = step_name
+            self.bar.retitle(f"diarization: {step_name}")
+        if completed is not None and total:
+            self.bar.set(completed, total=total)
+        else:
+            self.bar.tick()
 
 
 class Transcriber:
@@ -173,12 +197,28 @@ class Transcriber:
             wav = Path(tmp) / "audio.wav"
             turns_path = Path(tmp) / "turns.json"
             sf.write(str(wav), audio, SAMPLE_RATE)
-            log(f"  diarization (diarizen, {python.parent.parent.name})...")
             command = [str(python), str(helper), "--input", str(wav),
                        "--output", str(turns_path)]
             if self.diarizen_model:
                 command += ["--model", self.diarizen_model]
-            result = subprocess.run(command, capture_output=True)
+            # subprocess.run would block with a frozen bar on screen for minutes, so the
+            # process is polled instead. its output goes to files rather than to pipes:
+            # polling a pipe without draining it deadlocks as soon as the child writes
+            # more than the os buffer holds, and diarizen is talkative on stderr.
+            bar = Progress(f"diarization (diarizen, {python.parent.parent.name})", unit="")
+            out_path = Path(tmp) / "stdout.log"
+            err_path = Path(tmp) / "stderr.log"
+            with open(out_path, "wb") as out_file, open(err_path, "wb") as err_file:
+                process = subprocess.Popen(command, stdout=out_file, stderr=err_file)
+                try:
+                    while process.poll() is None:
+                        bar.tick()
+                        time.sleep(0.1)
+                finally:
+                    bar.close("")
+            result = subprocess.CompletedProcess(
+                command, process.returncode,
+                out_path.read_bytes(), err_path.read_bytes())
             if result.returncode != 0:
                 stderr = result.stderr.decode("utf-8", "replace")
                 log(f"  ⚠ diarizen failed (code {result.returncode}):")
@@ -385,7 +425,12 @@ class Transcriber:
                 try:
                     log(f"  diarization (pyannote, {attempt_device})... {mem_snapshot()}")
                     self.diarization_pipeline.to(torch.device(attempt_device))
-                    output = self.diarization_pipeline(payload, **kwargs)
+                    bar = Progress("diarization", unit="")
+                    try:
+                        output = self.diarization_pipeline(
+                            payload, hook=_PyannoteBar(bar), **kwargs)
+                    finally:
+                        bar.close("")
                     # pyannote 4.x returns DiarizeOutput instead of a bare Annotation
                     diarization = getattr(output, "speaker_diarization", output)
                     log(f"  diarization done. {mem_snapshot()}")
@@ -519,7 +564,8 @@ class Transcriber:
 
         if not (todo_transcribe or todo_diarize or todo_analyze or keep_audio):
             log("  everything was computed earlier — only redrawing the txt from the json.")
-            write_transcript_txt(state, output_dir / f"{base_name}.txt", drop_suspect)
+            write_transcript_txt(state, transcript_path(state, output_dir, base_name),
+                             drop_suspect)
             return state
 
         log(f"  decoding audio... {mem_snapshot()}")
@@ -665,5 +711,6 @@ class Transcriber:
             save_state(json_path, state)
 
         del audio
-        write_transcript_txt(state, output_dir / f"{base_name}.txt", drop_suspect)
+        write_transcript_txt(state, transcript_path(state, output_dir, base_name),
+                             drop_suspect)
         return state

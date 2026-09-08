@@ -15,7 +15,7 @@ from .config import (BACKCHANNEL_MAX_SEC, EMOTION_BUCKET_SECONDS, EMOTION_UNIT_M
                      SILENCE_FLOOR_DB, SPEAKER_BASELINE_MIN_DURATION,
                      SPEAKER_BASELINE_MIN_SEGMENTS, TURN_MAX_GAP, Z_NOTABLE)
 from .emotion import EMOTION_DIMENSIONS
-from .logging import log
+from .logging import Progress, log
 
 VOICE_FIELDS = ("jitter", "shimmer", "hnr")
 
@@ -306,14 +306,21 @@ def analyze_units(units, segments, audio, sample_rate, dimensions=None, block_si
     total_blocks = -(-len(pending) // block_size)
     log(f"    to measure: {len(pending)} of {len(units)} utterances "
         f"({total_blocks} blocks of {block_size})")
-    for b in range(total_blocks):
-        idx = pending[b * block_size:(b + 1) * block_size]
-        _analyze_unit_block(units, idx, by_id, audio, sample_rate, dimensions,
-                            voice=voice, pitch_track=pitch_track)
-        if on_block is not None:
-            on_block()
-        done = sum(1 for unit in units if unit.get("analyzed"))
-        log(f"    block {b + 1}/{total_blocks}: measured {done}/{len(units)}")
+    already = len(units) - len(pending)
+    bar = Progress("measuring", total=len(units), unit="utterances")
+    bar.set(already)
+    try:
+        for b in range(total_blocks):
+            idx = pending[b * block_size:(b + 1) * block_size]
+            _analyze_unit_block(units, idx, by_id, audio, sample_rate, dimensions,
+                                voice=voice, pitch_track=pitch_track)
+            if on_block is not None:
+                on_block()
+            bar.set(sum(1 for unit in units if unit.get("analyzed")),
+                    note=f"block {b + 1}/{total_blocks}")
+    finally:
+        bar.close(f"{sum(1 for u in units if u.get('analyzed'))} of {len(units)} "
+                  f"utterances measured")
 
 
 # ---------------------------------------------------------------- dialogue statistics

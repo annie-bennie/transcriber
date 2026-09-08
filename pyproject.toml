@@ -35,6 +35,8 @@ dependencies = [
 voice = ["praat-parselmouth>=0.4"]
 # benchmarks against public datasets, tools/benchmark.py.
 bench = ["datasets>=4.0", "jiwer>=3.0", "scikit-learn>=1.3"]
+# a youtube link or playlist as the input
+url = ["yt-dlp>=2024.1"]
 
 [project.scripts]
 transcribe = "transcriber.cli:run"

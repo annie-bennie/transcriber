@@ -264,10 +264,37 @@ def render_dialogue_report(state: dict) -> list:
     return lines
 
 
+# a transcript with speaker labels and one without are different documents, and telling
+# them apart from the filename saves opening both. the json keeps the plain name either
+# way — it is the artefact, and its name should not depend on which stages ran.
+SPEAKERS_SUFFIX = "_speakers"
+
+
+def transcript_path(state: dict, output_dir: Path, base_name: str) -> Path:
+    """Where the txt goes: `<name>_speakers.txt` when speakers were found."""
+    suffix = SPEAKERS_SUFFIX if (state or {}).get("speakers") else ""
+    return output_dir / f"{base_name}{suffix}.txt"
+
+
 def write_transcript_txt(state: dict, path: Path, drop_suspect: bool = False):
     write_text_atomic(path, render_transcript(state, drop_suspect))
     shown = sum(1 for s in state["segments"] if not (drop_suspect and s.get("suspect")))
     log(f"  ✓ saved: {path.name} ({shown} segments)")
+    _warn_stale_sibling(path)
+
+
+def _warn_stale_sibling(path: Path):
+    """Say so when the other name is still lying about from an earlier run.
+
+    nothing is deleted: the file is derived and cheap to redraw, but it is also the user's,
+    and quietly removing a transcript is not a thing to do on a rename.
+    """
+    name = path.stem
+    other = (path.with_name(name[:-len(SPEAKERS_SUFFIX)] + ".txt")
+             if name.endswith(SPEAKERS_SUFFIX)
+             else path.with_name(name + SPEAKERS_SUFFIX + ".txt"))
+    if other.exists():
+        log(f"    note: {other.name} is left over from an earlier run and is now stale")
 
 
 def write_combined(output_dir: Path, media_files, states, no_combined=False):

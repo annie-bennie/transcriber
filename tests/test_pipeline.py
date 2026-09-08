@@ -24,6 +24,8 @@ from transcriber.config import (LOUDNESS_NOTABLE_DB, PITCH_NOTABLE_SEMITONES,
                                 SILENCE_FLOOR_DB)
 from transcriber.emotion import (DEVIATION_GUIDE, EMOTION_DIMENSION_GUIDE,
                                  EMOTION_DIMENSIONS)
+from transcriber.render import transcript_path
+from transcriber.sources import is_url
 from transcriber.speakers import (build_emotion_units, build_segments, build_turns,
                                   flag_suspect_segments, refine_speaker_turns)
 
@@ -528,6 +530,31 @@ check("the share of uncertain time is reported", data["uncertain_share"], round(
 data = analyze_dialogue({"source": {"duration_sec": 10.0}, "diarization": [],
                          "segments": [spoken(0, None, 0.0, 5.0)], "turns": []})
 check("without diarization nothing is invented", data.get("speakers"), {})
+
+
+# =====================================================================
+#  input from a url
+# =====================================================================
+
+check("a url is recognised", [is_url(v) for v in
+      ("https://youtu.be/x", "http://a.b/c", "ytsearch3:two hosts",
+       "C:/video.mp4", "/home/a/v.mp4", "video.mp4")],
+      [True, True, True, False, False, False])
+
+
+# =====================================================================
+#  where the txt goes
+# =====================================================================
+
+out = Path("out")
+check("a transcript with speakers is named apart",
+      transcript_path({"speakers": ["SPEAKER_00", "SPEAKER_01"]}, out, "meeting").name,
+      "meeting_speakers.txt")
+check("without speakers the name stays plain",
+      transcript_path({"speakers": []}, out, "meeting").name, "meeting.txt")
+check("a state that never got that far is plain too",
+      transcript_path({}, out, "meeting").name, "meeting.txt")
+
 
 print()
 print("ALL PASSED" if ok else "FAILURES PRESENT")

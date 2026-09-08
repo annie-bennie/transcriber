@@ -2,8 +2,18 @@
 
 [← back to readme](../README.md)
 
-each file produces `<name>.json` and `<name>.txt`. the txt is a view: everything in it can be
-redrawn from the json with `--rebuild-txt`, so nothing is stored only in that format.
+each file produces `<name>.json` and a txt drawn from it. the txt is a view: everything in
+it can be redrawn from the json with `--rebuild-txt`, so nothing is stored only in that
+format.
+
+the txt is named `<name>_speakers.txt` when speaker separation found anyone, and `<name>.txt`
+when it did not — a transcript with speaker labels and one without are different documents,
+and the name says which you have without opening it. the json keeps the plain name either
+way: it is the artefact, and its name should not depend on which stages ran.
+
+changing that (turning `--no-diarize` on or off) leaves the other file behind from the
+earlier run. nothing is deleted for you — the txt is yours and cheap to redraw — but the log
+says which file has gone stale.
 
 ## units: segment, utterance, turn
 

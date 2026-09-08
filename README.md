@@ -7,11 +7,12 @@ nothing leaves the machine. no api keys, no uploads.
 
 ```bash
 ./transcribe.sh "meeting.mp4"
+./transcribe.sh "https://www.youtube.com/watch?v=..."     # a video or a whole playlist
 ```
 
 ## what it produces
 
-one `.json` per file and a `.txt` drawn from it:
+one `.json` per file and a txt drawn from it — `<name>_speakers.txt` when speakers were separated, `<name>.txt` when they were not:
 
 ```
 [SPEAKER_01 05:12-05:14] (aro +2.3σ | -19dB ↑7dB | pitch 254Hz ↑6st): so what happened next
@@ -44,6 +45,7 @@ interface for anything downstream.
 | emotion | [audeering MSP-Dim](https://huggingface.co/audeering/wav2vec2-large-robust-12-ft-emotion-msp-dim) — arousal, dominance, valence |
 | loudness, pitch, dialogue statistics | arithmetic over the waveform, no models |
 | voice quality (optional) | [praat](https://github.com/YannickJadoul/Parselmouth) — jitter, shimmer, HNR |
+| input from a url (optional) | [yt-dlp](https://github.com/yt-dlp/yt-dlp) — one video or a playlist, audio only |
 
 emotion is three numbers rather than a label. a label answers "what was that"; the numbers
 answer "how did this person change", and only the second question survives being asked
@@ -102,9 +104,21 @@ audio.
 
 ## licence
 
-the code is under `LICENSE`. the models have their own terms, and they differ — pyannote
-requires accepting conditions on hugging face, the emotion model and wespeaker have their
-own licences. check each one before commercial use.
+the code is under `LICENSE`. the models are not, and two of them are non-commercial:
+
+| model | licence | commercial use |
+|---|---|---|
+| whisper | Apache-2.0 | yes |
+| pyannote 3.1, segmentation-3.0 | MIT | yes |
+| pyannote community-1, wespeaker | CC-BY-4.0 | yes, with attribution |
+| audeering MSP-Dim — the emotion scales | **CC-BY-NC-SA-4.0** | **no** |
+| diarizen wavlm-large | **CC-BY-NC-4.0** | **no** |
+
+so the pipeline **as configured by default is non-commercial**, whatever the code licence
+says — the restriction comes from the weights, not from here. running it without the
+emotion scales (`--no-emotion`) and on pyannote rather than diarizen leaves only permissive
+models. pyannote also requires accepting its conditions on hugging face before the weights
+download at all.
 
 ## acknowledgements
 

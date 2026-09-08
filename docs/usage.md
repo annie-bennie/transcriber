@@ -2,14 +2,59 @@
 
 [← back to readme](../README.md)
 
-the first argument is a file or a folder. a folder is walked recursively and every media file
-inside is taken.
+the first argument is a file, a folder, or a url. a folder is walked recursively and every
+media file inside is taken; a url is fetched first and then treated like any other input.
 
 ```bash
 ./transcribe.sh "lecture.mp4"                  # macos, linux
 transcribe.bat "lecture.mp4"                   # windows
 python transcribe.py "lecture.mp4"             # any platform
 transcribe "lecture.mp4"                       # after pip install -e .
+```
+
+## from a url
+
+a single video or a whole playlist, anything yt-dlp can reach. only the audio is fetched —
+the pipeline downmixes to mono 16 kHz anyway, so pulling video would cost bandwidth for
+nothing.
+
+```bash
+./transcribe.sh "https://www.youtube.com/watch?v=..." --output-dir ~/results
+./transcribe.sh "https://www.youtube.com/playlist?list=..." --output-dir ~/results
+```
+
+needs `pip install yt-dlp`. without `--output-dir` the results land in `./transcripts`,
+since a url has no folder of its own to sit next to. yt-dlp's own search prefixes work too:
+`"ytsearch3:interview with a designer"`.
+
+**a playlist is handled one item at a time**: it is listed first, without downloading
+anything, and then each item is fetched, transcribed and deleted before the next one starts.
+so peak disk usage is one episode rather than the whole playlist, and transcripts appear as
+they are finished instead of after the last byte lands.
+
+```bash
+./transcribe.sh "https://www.youtube.com/playlist?list=..." --output-dir ~/results
+./transcribe.sh "https://www.youtube.com/playlist?list=..." --playlist-limit 5
+```
+
+resuming works off the video id, which yt-dlp writes into the filename as `[id]`. the audio
+is gone by then but the json is not, so re-running the same playlist skips what is already
+finished **without downloading it again** — an interrupted run of forty episodes picks up at
+episode thirty-one.
+
+the downloaded audio is deleted right after each file is transcribed. `--keep-audio` keeps
+it. a file you supplied yourself is never deleted, whatever the flags say.
+
+one blocked video does not cost the rest: the run reports it and moves on. what you download
+is somebody's work under somebody's terms, and fetching it may be against the terms of the
+site it sits on — that call is yours.
+
+`--rebuild-txt` does not take a url: it works from json files, and the url is not where they
+are. point it at the output folder instead — it rebuilds from the json even though the audio
+is long gone:
+
+```bash
+./transcribe.sh ~/results --rebuild-txt
 ```
 
 ## common combinations
@@ -80,6 +125,7 @@ which engine to pick is in [diarization.md](diarization.md).
 
 | option | default | what for |
 |---|---|---|
+| `--playlist-limit N` | all | take only the first N items of a playlist or search |
 | `--rebuild-txt` | off | rebuild everything derived from existing json. needs no models and no audio |
 | `--drop-suspect` | off | leave flagged segments out of the txt. they stay in the json either way |
 | `--overwrite` | off | recompute everything, ignoring saved progress |
@@ -87,6 +133,27 @@ which engine to pick is in [diarization.md](diarization.md).
 | `--debug` | off | print every recognised line with its timecode as it goes |
 
 `transcribe.py --help` prints the same list.
+
+## progress
+
+each long stage draws a bar while it runs — downloading, whisper, diarization, measurement.
+it is the same tqdm bar whisper itself uses, so every stage looks alike:
+
+```
+  measuring:  57%|█████▋      | 384/672 [00:12<00:09, 31.2utterances/s, block 2/4]
+```
+
+a stage with nothing to count against — diarizen runs as a subprocess and reports no
+progress — shows the elapsed time instead of a fake percentage:
+
+```
+  diarization (diarizen): 00:41
+```
+
+the bar is a screen thing only. the log file gets one line per stage instead, because a bar
+rewritten in place turns into a thousand near-identical lines in a file, and the log is what
+you read after a crash. when output is piped rather than shown on a terminal, the bar turns
+itself off and a line every 10% takes its place.
 
 ## resuming after a crash
 
