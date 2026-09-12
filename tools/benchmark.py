@@ -146,7 +146,7 @@ def run_emotion(args):
             print(f"\n{short}: failed to load — {type(e).__name__}")
             continue
         labels = list(getattr(classifier.model.config, "id2label", {}).values())
-        covered = sorted({to_core_emotion(l) for l in labels} - {None})
+        covered = sorted({to_core_emotion(label) for label in labels} - {None})
         print(f"\n=== {short}\n    model labels: {labels}")
         print(f"    of those, inside the shared core: {covered}")
         if len(covered) < len(EMOTION_CORE):
@@ -196,9 +196,11 @@ def run_emotion(args):
                 row += f"{'—':>22}"
         print(row)
     baseline = 100.0 / len(EMOTION_CORE)
-    print(f"\nrandom guessing would give {baseline:.0f}%. the comparison runs on the shared core "
+    print(f"\nrandom guessing would give {baseline:.0f}%. the comparison runs on the "
+          "shared core "
           f"of four emotions; clips labelled outside it are excluded.")
-    print("\"of N%\" is the ceiling: the share of clips whose class the model can output at all.")
+    print("\"of N%\" is the ceiling: the share of clips whose class the model can "
+          "output at all.")
     return 0
 
 
@@ -218,7 +220,6 @@ def decode_clip(payload):
     data, rate = sf.read(io.BytesIO(payload["bytes"]), dtype="float32", always_2d=True)
     audio = data.mean(axis=1)
     if rate != SAMPLE_RATE:
-        import math
 
         target = int(round(len(audio) * SAMPLE_RATE / rate))
         audio = np.interp(np.linspace(0, len(audio) - 1, target),
@@ -457,8 +458,9 @@ def diarize_diarizen(audio, python_path, model=None):
 
 
 def run_der(args):
-    import transcribe as pipeline
     from pyannote.metrics.diarization import DiarizationErrorRate
+
+    import transcribe as pipeline
 
     groups = verify_distinct(collect_speakers(args.speakers_pool, args.clips_per_speaker))
     if len(groups) < 2:
@@ -516,7 +518,8 @@ def run_der(args):
               f"missed {missed:.1f}, false alarm {false_alarm:.1f})")
 
     print()
-    print(f"{'variant':28}{'DER %':>8}{'confusion':>10}{'missed':>9}{'false al.':>9}{'sec':>7}")
+    print(f"{'variant':28}{'DER %':>8}{'confusion':>10}{'missed':>9}"
+          f"{'false al.':>9}{'sec':>7}")
     for name, der, confusion, missed, false_alarm, seconds in sorted(
             results, key=lambda r: r[1]):
         print(f"{name:28}{der:8.1f}{confusion:10.1f}{missed:9.1f}"
@@ -530,9 +533,10 @@ def run_der(args):
 
 def run_real(args):
     """DER on corpora with human annotation."""
-    import transcribe as pipeline
     from datasets import Audio, load_dataset
     from pyannote.metrics.diarization import DiarizationErrorRate
+
+    import transcribe as pipeline
 
     variants = []
     if "pyannote" in args.backend:

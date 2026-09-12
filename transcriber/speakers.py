@@ -8,13 +8,23 @@ deliberate — see docs/diarization.md for the measurements behind it.
 import bisect
 import re
 
-from .config import (BACKCHANNEL_MAX_SEC, EMOTION_UNIT_MIN, EMOTION_UNIT_TARGET,
-                     HALLUCINATION_PHRASES, MAX_EMOTION_DURATION,
-                     SPEAKER_REFERENCE_MIN, SPEAKER_REFINE_MIN_MARGIN,
-                     SPEAKER_REFINE_MIN_SEPARATION, SPEAKER_REFINE_ROUNDS,
-                     SUSPECT_AVG_LOGPROB, SUSPECT_COMPRESSION_RATIO,
-                     SUSPECT_NO_SPEECH_PROB, SUSPECT_REPEAT_RUN, SUSPECT_WORD_PROB,
-                     TURN_MAX_GAP, WORD_MIN_OVERLAP, WORD_SPEAKER_GAP)
+from .config import (
+    EMOTION_UNIT_TARGET,
+    HALLUCINATION_PHRASES,
+    MAX_EMOTION_DURATION,
+    SPEAKER_REFERENCE_MIN,
+    SPEAKER_REFINE_MIN_MARGIN,
+    SPEAKER_REFINE_MIN_SEPARATION,
+    SPEAKER_REFINE_ROUNDS,
+    SUSPECT_AVG_LOGPROB,
+    SUSPECT_COMPRESSION_RATIO,
+    SUSPECT_NO_SPEECH_PROB,
+    SUSPECT_REPEAT_RUN,
+    SUSPECT_WORD_PROB,
+    TURN_MAX_GAP,
+    WORD_MIN_OVERLAP,
+    WORD_SPEAKER_GAP,
+)
 
 
 # ---------------------------------------------------------------- turns from pyannote

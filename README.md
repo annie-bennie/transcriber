@@ -54,7 +54,7 @@ across recordings and languages. the reasoning and the measurements are in
 
 ## documentation
 
-- [docs/install.md](docs/install.md) — installation, model access, the optional diarizen environment
+- [docs/install.md](docs/install.md) — installation, model access, the optional diarizen environment, docker
 - [docs/usage.md](docs/usage.md) — every option, common combinations, resuming after a crash
 - [docs/output.md](docs/output.md) — json structure, txt marks, units of analysis
 - [docs/measurements.md](docs/measurements.md) — what the numbers mean and how far to trust them
@@ -63,11 +63,13 @@ across recordings and languages. the reasoning and the measurements are in
 
 ## requirements
 
-- python 3.10 or newer
-- ffmpeg on the PATH
+- python 3.10, 3.11 or 3.12, and one `pip install -r requirements.txt` after torch —
+  ffmpeg and diarizen come with it
 - an nvidia gpu is strongly preferred; it runs on cpu, several times slower
-- about 4 GB for model weights, downloaded on first run
-- a hugging face token and accepted licence terms for the diarization models
+- about 2.5 GB for model weights, downloaded on first run
+- or none of the above but docker: [one image](docs/install.md#docker-instead), for cpu or an
+  nvidia card, and once the models are downloaded it runs with no network at all — checked
+  with `--network none`
 
 ## speed
 
@@ -104,7 +106,7 @@ audio.
 
 ## licence
 
-the code is under `LICENSE`. the models are not, and two of them are non-commercial:
+the code is MIT — see `LICENSE`. the models are not, and two of them are non-commercial:
 
 | model | licence | commercial use |
 |---|---|---|
@@ -116,9 +118,9 @@ the code is under `LICENSE`. the models are not, and two of them are non-commerc
 
 so the pipeline **as configured by default is non-commercial**, whatever the code licence
 says — the restriction comes from the weights, not from here. running it without the
-emotion scales (`--no-emotion`) and on pyannote rather than diarizen leaves only permissive
-models. pyannote also requires accepting its conditions on hugging face before the weights
-download at all.
+emotion scales (`--no-emotion`) and in the optional pyannote 4 environment rather than on
+diarizen leaves only permissive models; pyannote's weights are gated on hugging face and
+need their conditions accepted first.
 
 ## acknowledgements
 

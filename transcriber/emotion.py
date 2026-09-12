@@ -22,7 +22,7 @@ speaker the same way loudness and pitch are. "arousal 2σ above this person's ow
 a statement about a person; a label like "positive 0.9" is a statement about what a chunk
 of audio resembles.
 """
-from .config import (LOUDNESS_NOTABLE_DB, PITCH_NOTABLE_SEMITONES, Z_NOTABLE)
+from .config import LOUDNESS_NOTABLE_DB, PITCH_NOTABLE_SEMITONES, Z_NOTABLE
 from .logging import log
 
 DEFAULT_EMOTION_DIM_MODEL = "audeering/wav2vec2-large-robust-12-ft-emotion-msp-dim"
@@ -149,8 +149,7 @@ class DimensionalEmotion:
     def __init__(self, model_name=DEFAULT_EMOTION_DIM_MODEL, device="cpu"):
         import torch
         from torch import nn
-        from transformers import (Wav2Vec2Model, Wav2Vec2PreTrainedModel,
-                                  Wav2Vec2Processor)
+        from transformers import Wav2Vec2Model, Wav2Vec2PreTrainedModel, Wav2Vec2Processor
 
         class RegressionHead(nn.Module):
             def __init__(self, config):
@@ -172,7 +171,9 @@ class DimensionalEmotion:
                 self.config = config
                 self.wav2vec2 = Wav2Vec2Model(config)
                 self.classifier = RegressionHead(config)
-                self.init_weights()
+                # post_init, not init_weights: transformers 5 sets up attributes there that
+                # from_pretrained reads, and fails without them. 4.x has had it for years.
+                self.post_init()
 
             def forward(self, input_values):
                 hidden = self.wav2vec2(input_values)[0]

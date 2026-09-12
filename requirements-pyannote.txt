@@ -1,0 +1,22 @@
+# optional: an environment on pyannote.audio 4 instead of diarizen's 3.1.1 fork.
+#
+# what it adds over requirements.txt: plda for speaker refinement, and pyannote's own pipelines
+# (3.1, community-1) as speaker engines. on an hour of dialogue scored against hand-corrected
+# labels plda changed nothing — 27 of 28 lines and 22 of 23 boundaries right either way — so
+# most people do not need this.
+#
+# it cannot share an environment with diarizen: both install a package named pyannote.audio.
+# diarizen is then run as a subprocess from an environment built from requirements.txt:
+#     DIARIZEN_PYTHON=/path/to/that/environment/bin/python
+#
+# python 3.10 or newer. torch 2.8.0 first, exactly as in requirements.txt, then:
+#     pip install -r requirements-pyannote.txt
+
+openai-whisper==20250625
+pyannote.audio==4.0.3
+transformers==4.50.0
+numpy>=1.26
+soundfile>=0.12
+psutil>=5.9
+tqdm
+imageio-ffmpeg==0.6.0

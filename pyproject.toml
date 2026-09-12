@@ -7,27 +7,38 @@ name = "transcriber"
 version = "0.6.0"
 description = "Local transcription with speaker separation and speech measurement"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.10,<3.13"
 license = { file = "LICENSE" }
 keywords = ["whisper", "speech-to-text", "speaker-diarization", "speech-emotion",
             "paralinguistics", "meeting-transcription"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Topic :: Multimedia :: Sound/Audio :: Speech",
 ]
 
-# torch and torchaudio are deliberately unpinned and not listed here. they must be
-# installed first, matched to the hardware, or pip will happily pull a build with no
-# support for the card in the machine. see docs/install.md.
+# the same environment as requirements.txt. torch and torchaudio are not listed: they have
+# to be installed first, at 2.8.0 and from the index that matches the hardware — see
+# docs/install.md.
 dependencies = [
-    "openai-whisper>=20240930",
-    "pyannote.audio>=3.1",
-    "transformers>=4.40",
+    "openai-whisper==20250625",
+    "pyannote.audio @ https://github.com/BUTSpeechFIT/DiariZen/archive/844f5555b0a98acd0931511fc641a8c5b8ba92c7.zip#subdirectory=pyannote-audio",
+    "diarizen @ https://github.com/BUTSpeechFIT/DiariZen/archive/844f5555b0a98acd0931511fc641a8c5b8ba92c7.zip",
+    "numpy==1.26.4",
+    "accelerate==1.6.0",
+    "h5py",
+    "librosa",
+    "scikit-learn",
+    "pyyaml",
+    "toml",
+    "transformers==4.50.0",
+    "huggingface_hub==0.36.0",
     "soundfile>=0.12",
-    "numpy>=1.26",
     "psutil>=5.9",
+    "tqdm",
+    "imageio-ffmpeg==0.6.0",
 ]
 
 [project.optional-dependencies]

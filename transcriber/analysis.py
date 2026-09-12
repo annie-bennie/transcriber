@@ -9,11 +9,23 @@ fast people answered.
 import math
 
 from .audio import analyze_acoustics, voice_quality
-from .config import (BACKCHANNEL_MAX_SEC, EMOTION_BUCKET_SECONDS, EMOTION_UNIT_MIN,
-                     EN_VOWELS, FAST_RESPONSE_SEC, MAD_TO_SIGMA, MAX_EMOTION_DURATION,
-                     LOUDNESS_NOTABLE_DB, PITCH_NOTABLE_SEMITONES, RU_VOWELS,
-                     SILENCE_FLOOR_DB, SPEAKER_BASELINE_MIN_DURATION,
-                     SPEAKER_BASELINE_MIN_SEGMENTS, TURN_MAX_GAP, Z_NOTABLE)
+from .config import (
+    BACKCHANNEL_MAX_SEC,
+    EMOTION_BUCKET_SECONDS,
+    EMOTION_UNIT_MIN,
+    EN_VOWELS,
+    FAST_RESPONSE_SEC,
+    LOUDNESS_NOTABLE_DB,
+    MAD_TO_SIGMA,
+    MAX_EMOTION_DURATION,
+    PITCH_NOTABLE_SEMITONES,
+    RU_VOWELS,
+    SILENCE_FLOOR_DB,
+    SPEAKER_BASELINE_MIN_DURATION,
+    SPEAKER_BASELINE_MIN_SEGMENTS,
+    TURN_MAX_GAP,
+    Z_NOTABLE,
+)
 from .emotion import EMOTION_DIMENSIONS
 from .logging import Progress, log
 

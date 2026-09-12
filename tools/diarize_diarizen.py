@@ -6,22 +6,10 @@ pyannote.audio 4.x of the main environment. so it lives in its own venv and hand
 back as plain json: a list of [start, end, speaker]. the main pipeline calls this file as a
 subprocess and needs to know nothing else about diarizen.
 
-Setting up that environment (python 3.10 is required; diarizen does not build on 3.13):
-
-    uv venv --python 3.10 /path/to/diarizen-venv
-    git clone https://github.com/BUTSpeechFIT/DiariZen.git
-    cd DiariZen
-    uv pip install --python /path/to/diarizen-venv/bin/python \\
-        torch torchaudio --index-url https://download.pytorch.org/whl/cu130
-    uv pip install --python /path/to/diarizen-venv/bin/python \\
-        numpy==1.26.4 einops h5py librosa soundfile pyyaml tqdm toml transformers \\
-        omegaconf tensorboardX asteroid-filterbanks lightning speechbrain torchmetrics \\
-        rich semver psutil scikit-learn accelerate==1.6.0 torch_audiomentations \\
-        pytorch-metric-learning "pyannote.core==5.0.0" "pyannote.database==5.1.3" \\
-        "pyannote.metrics==3.2.1" "pyannote.pipeline==3.0.1"
-    uv pip install --python /path/to/diarizen-venv/bin/python --no-deps -e ./pyannote-audio -e .
-
-Then point DIARIZEN_PYTHON at that interpreter.
+The environment is the one requirements.txt describes, and this runs under the same
+interpreter as the pipeline. Next to an optional pyannote 4 environment
+(requirements-pyannote.txt) it runs from a requirements.txt environment instead, named by
+DIARIZEN_PYTHON.
 
 Usage (normally invoked from transcribe.py):
     python tools/diarize_diarizen.py --input audio.wav --output turns.json
@@ -83,7 +71,8 @@ def main():
     parser = argparse.ArgumentParser(description="diarization through diarizen")
     parser.add_argument("--input", required=True, help="wav, mono, 16 kHz")
     parser.add_argument("--output", required=True, help="where to put the json with the turns")
-    parser.add_argument("--model", default=DEFAULT_MODEL, help=f"model (default: {DEFAULT_MODEL})")
+    parser.add_argument("--model", default=DEFAULT_MODEL,
+                        help=f"model (default: {DEFAULT_MODEL})")
     args = parser.parse_args()
 
     from diarizen.pipelines.inference import DiariZenPipeline

@@ -14,8 +14,15 @@ import os
 from datetime import datetime
 from pathlib import Path
 
-from .analysis import (analyze_dialogue, apply_dimension_z, apply_speaker_z, apply_voice_z,
-                       build_dimension_stats, build_speaker_stats, build_voice_stats)
+from .analysis import (
+    analyze_dialogue,
+    apply_dimension_z,
+    apply_speaker_z,
+    apply_voice_z,
+    build_dimension_stats,
+    build_speaker_stats,
+    build_voice_stats,
+)
 from .config import EMOTION_UNIT_TARGET
 from .emotion import DEVIATION_GUIDE, EMOTION_DIMENSION_GUIDE
 from .logging import log

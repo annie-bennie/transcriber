@@ -33,3 +33,39 @@ def patch_torchaudio():
             encoding: str = ""
 
         torchaudio.AudioMetaData = AudioMetaData
+
+
+def from_pretrained(cls, name, token, **kwargs):
+    """`cls.from_pretrained` with the hugging face token under the name this version takes.
+
+    pyannote.audio 4 calls it `token`, 3.x — the fork diarizen installs — `use_auth_token`.
+    the wrong one is a TypeError, which the loaders around it report as a model that could not
+    be loaded, so it has to be right rather than guessed.
+    """
+    import inspect
+
+    params = inspect.signature(cls.from_pretrained).parameters
+    key = "token" if "token" in params else "use_auth_token"
+    return cls.from_pretrained(name, **{key: token}, **kwargs)
+
+
+def allow_pyannote_checkpoints():
+    """Let torch's safe loader open pyannote 3.x checkpoints.
+
+    since torch 2.6 `torch.load` refuses anything but plain tensors unless told otherwise, and
+    a pyannote 3.x checkpoint also holds a torch version object and the task description
+    classes. pyannote 4 deals with this itself; 3.x — the fork inside diarizen — raises an
+    UnpicklingError, which the embedding loader reports as "speaker refinement will be
+    skipped". allowing these specific types is narrower than switching the check off.
+    idempotent.
+    """
+    import torch
+    import torch.torch_version
+
+    allowed = [torch.torch_version.TorchVersion]
+    try:
+        from pyannote.audio.core.task import Problem, Resolution, Specifications
+        allowed += [Specifications, Problem, Resolution]
+    except Exception:
+        pass
+    torch.serialization.add_safe_globals(allowed)

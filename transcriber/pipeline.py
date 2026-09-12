@@ -6,28 +6,53 @@ raising a model for it costs a dozen seconds and several gigabytes for nothing �
 resume or a --rediarize that was pure waste. each model comes up on first use.
 """
 import gc
+import importlib.util
 import json
 import os
 import subprocess
-import time
+import sys
 import tempfile
+import time
 import traceback
 from pathlib import Path
 
 from .analysis import analyze_units
-from .audio import PitchTrack, decode_audio, voice_quality_available
-from .compat import patch_torchaudio
-from .config import (DEFAULT_EMBEDDING_MODEL, DEFAULT_DIARIZEN_MODEL, DEFAULT_LANGUAGE,
-                     DEFAULT_WHISPER_MODEL, DIARIZE_MODEL_31, DIARIZE_MODEL_COMMUNITY,
-                     DIARIZE_MODEL_DIARIZEN, EMOTION_UNIT_MIN, EMOTION_UNIT_TARGET,
-                     SAMPLE_RATE, SPEAKER_REFINE_MIN_MARGIN)
+from .asr import DEFAULT_BACKEND, make_backend
+from .audio import decode_audio, voice_quality_available
+from .compat import allow_pyannote_checkpoints, from_pretrained, patch_torchaudio
+from .config import (
+    DEFAULT_EMBEDDING_MODEL,
+    DEFAULT_LANGUAGE,
+    DEFAULT_WHISPER_MODEL,
+    DIARIZE_MODEL_31,
+    DIARIZE_MODEL_COMMUNITY,
+    DIARIZE_MODEL_DIARIZEN,
+    EMOTION_UNIT_MIN,
+    EMOTION_UNIT_TARGET,
+    SAMPLE_RATE,
+    SPEAKER_REFINE_MIN_MARGIN,
+)
 from .emotion import DEFAULT_EMOTION_DIM_MODEL, DimensionalEmotion
-from .logging import Progress, log, mem_snapshot
+from .logging import Progress, log, mem_snapshot, software_versions
 from .render import transcript_path, write_transcript_txt
-from .speakers import (build_emotion_units, build_segments, build_turns,
-                       describe_suspects, diarization_turns, refine_speaker_turns)
-from .state import (SCHEMA_VERSION, load_state, new_state, rebuild_derived,
-                    refresh_statistics, save_state, state_path, state_progress)
+from .speakers import (
+    build_emotion_units,
+    build_segments,
+    build_turns,
+    describe_suspects,
+    diarization_turns,
+    refine_speaker_turns,
+)
+from .state import (
+    SCHEMA_VERSION,
+    load_state,
+    new_state,
+    rebuild_derived,
+    refresh_statistics,
+    save_state,
+    state_path,
+    state_progress,
+)
 
 
 def _round(value, digits):
@@ -66,7 +91,7 @@ class Transcriber:
                  embedding_model=DEFAULT_EMBEDDING_MODEL, word_timestamps=True,
                  emotion_unit_target=EMOTION_UNIT_TARGET, voice_quality=False,
                  emotion_dimensions=True, emotion_dim_model=DEFAULT_EMOTION_DIM_MODEL,
-                 debug=False):
+                 asr_backend=DEFAULT_BACKEND, debug=False):
         import torch
 
         self.debug = debug
@@ -96,6 +121,8 @@ class Transcriber:
         self.emotion_dimensions = emotion_dimensions
         self.emotion_dim_model = emotion_dim_model
 
+        self.asr_backend = asr_backend
+        self.asr = make_backend(asr_backend, model_name, self.device)
         self.whisper_model = None
         self.diarization_pipeline = None
         self.diarization_tried = False
@@ -106,11 +133,11 @@ class Transcriber:
 
     # ------------------------------------------------------------ lazy model loading
     def _get_whisper(self):
+        """The recogniser, loaded on first use. kept under the old name: every stage that
+        parks models between passes refers to it."""
         if self.whisper_model is None:
-            log(f"loading whisper ({self.model_name})...")
-            import whisper
-            self.whisper_model = whisper.load_model(self.model_name, device=self.device)
-            log(f"whisper loaded. {mem_snapshot()}")
+            self.asr.load()
+            self.whisper_model = self.asr
         return self.whisper_model
 
     def _get_diarization(self):
@@ -176,6 +203,10 @@ class Transcriber:
         for name in (".venv-diarizen", "diarizen-venv"):
             candidates.append(root / name / "Scripts" / "python.exe")
             candidates.append(root / name / "bin" / "python")
+        # one environment holding diarizen next to everything else — the docker image is built
+        # that way — needs no second interpreter: the helper runs under this one
+        if importlib.util.find_spec("diarizen") is not None:
+            candidates.append(Path(sys.executable))
         for candidate in candidates:
             if candidate.exists():
                 return candidate
@@ -236,9 +267,10 @@ class Transcriber:
 
         log("loading the pyannote diarization pipeline...")
         patch_torchaudio()
+        allow_pyannote_checkpoints()
 
-        from pyannote.audio import Pipeline
         import pyannote.audio.pipelines.speaker_diarization as _sd_mod
+        from pyannote.audio import Pipeline
 
         # pyannote 4.x pulls plda from the gated community-1 even for pipeline 3.1, which
         # does not need it, and without access that kills the whole load. the error is
@@ -274,7 +306,7 @@ class Transcriber:
         last_error = None
         for name in candidates:
             try:
-                self.diarization_pipeline = Pipeline.from_pretrained(name, token=token)
+                self.diarization_pipeline = from_pretrained(Pipeline, name, token)
                 self.diarize_model_used = name
                 break
             except Exception as e:
@@ -289,7 +321,8 @@ class Transcriber:
             log("  pyannote/segmentation-3.0 on huggingface.co, and that a token is set.")
             # pyannote is not always required: with diarizen installed there is another way
             # to label speakers. this used to switch off the whole stage.
-            if self.diarize_model in ("auto", DIARIZE_MODEL_DIARIZEN) and self._diarizen_python():
+            if (self.diarize_model in ("auto", DIARIZE_MODEL_DIARIZEN)
+                and self._diarizen_python()):
                 log("  speakers will be labelled by diarizen.")
                 return
             log("  continuing without diarization.")
@@ -318,6 +351,7 @@ class Transcriber:
         # refinement can run after diarizen, which never touches the pyannote loader, so the
         # shims have to be applied here too.
         patch_torchaudio()
+        allow_pyannote_checkpoints()
         self.plda = getattr(self.diarization_pipeline, "_plda", None)
         if self.plda is None:
             # plda lives in community-1 but applies to 3.1 embeddings as well: the voice
@@ -326,6 +360,11 @@ class Transcriber:
                 from pyannote.audio.core.plda import PLDA
                 self.plda = PLDA.from_pretrained(
                     DIARIZE_MODEL_COMMUNITY, subfolder="plda", token=self.hf_token)
+            except ImportError:
+                # pyannote 3.x has no plda at all, and that is the version a single environment
+                # with diarizen carries. not a missing licence, so not worth a warning sign.
+                log("  plda needs pyannote.audio 4; this environment has an older one — "
+                    "speaker refinement runs without it")
             except Exception as e:
                 log(f"  ⚠ plda unavailable ({type(e).__name__}) — speaker refinement will "
                     f"be less confident. terms: https://hf.co/{DIARIZE_MODEL_COMMUNITY}")
@@ -338,7 +377,8 @@ class Transcriber:
         try:
             import torch
             from pyannote.audio.pipelines.speaker_verification import (
-                PretrainedSpeakerEmbedding)
+                PretrainedSpeakerEmbedding,
+            )
             self.embedder = PretrainedSpeakerEmbedding(
                 self.embedding_model, device=torch.device(self.device))
             log(f"  voice embedding model loaded ({self.embedding_model}; "
@@ -453,6 +493,7 @@ class Transcriber:
         """Settings the content of the json depends on."""
         return {
             "model": self.model_name,
+            "asr": self.asr_backend,
             "language": language,
             "diarize": self.diarize,
             # what was asked for — this decides whether recomputation is needed. the
@@ -500,9 +541,13 @@ class Transcriber:
             log("  ⚠ the source file changed since the last run — recomputing")
             return None
         old = state.get("params") or {}
-        if (old.get("model"), old.get("language")) != (params["model"], params["language"]):
-            log(f"  ⚠ different whisper model or language (was {old.get('model')}/"
-                f"{old.get('language')}) — the transcript is recomputed")
+        # the engine counts as much as the model does. an older json has no "asr" field at
+        # all and is treated as whisper.
+        was = (old.get("model"), old.get("language"), old.get("asr") or "whisper")
+        now = (params["model"], params["language"], params["asr"])
+        if was != now:
+            log(f"  ⚠ different engine, model or language (was {was[2]}/{was[0]}/{was[1]}) "
+                f"— the transcript is recomputed")
             return None
         if old.get("word_timestamps") != params["word_timestamps"]:
             log("  ⚠ word timestamp mode changed — the transcript is recomputed")
@@ -579,44 +624,31 @@ class Transcriber:
             sf.write(str(output_dir / f"{base_name}.wav"), audio, SAMPLE_RATE)
 
         if todo_transcribe:
-            log("  transcribing (whisper)...")
-            whisper_model = self._get_whisper()
+            log(f"  transcribing ({self.asr.name})...")
+            self._get_whisper()
             if self.device == "cuda":
-                whisper_model.to(torch.device(self.device))
-            # verbose=False gives a progress bar, verbose=True prints every line with its
-            # timecode — that shows which second of the recording things break on.
-            result = whisper_model.transcribe(
-                audio, language=language, verbose=(True if self.debug else False),
-                word_timestamps=self.word_timestamps,
-            )
-            # confidence metrics (no_speech_prob, avg_logprob, compression_ratio) are kept
-            # next to the text: the hallucination filter reads them.
-            state["asr_segments"] = [
-                {"id": i,
-                 "start": round(seg["start"], 3),
-                 "end": round(seg["end"], 3),
-                 "text": seg["text"].strip(),
-                 "no_speech_prob": _round(seg.get("no_speech_prob"), 4),
-                 "avg_logprob": _round(seg.get("avg_logprob"), 4),
-                 "compression_ratio": _round(seg.get("compression_ratio"), 3),
-                 "words": [
-                     {"text": w["word"], "start": round(w["start"], 3),
-                      "end": round(w["end"], 3), "prob": _round(w.get("probability"), 3)}
-                     for w in (seg.get("words") or [])
-                 ]}
-                for i, seg in enumerate(result["segments"])
-            ]
-            state["text"] = result["text"].strip()
+                self.asr.to(self.device)
+            # the backend returns segments already shaped for the json, confidence numbers
+            # and all: the hallucination filter reads no_speech_prob, avg_logprob and
+            # compression_ratio, and a backend that dropped one would break the filter
+            # rather than the transcript — quietly.
+            result = self.asr.transcribe(
+                audio, language=language, word_timestamps=self.word_timestamps,
+                verbose=bool(self.debug))
+            state["asr_segments"] = result.segments
+            state["text"] = result.text
             state["segments"] = build_segments(state["asr_segments"])
             state["turns"] = build_turns(state["segments"])
             state["emotion_units"] = build_emotion_units(
                 state["segments"], state["turns"], self.emotion_unit_target)
             # the transcript was rewritten — old measurements belong to other segments.
             stages.update({"transcribe": "done", "diarize": None, "analyze": None})
+            state.setdefault("software", {})["transcribe"] = software_versions()
             state["speakers"] = []
             save_state(json_path, state)
-            words = sum(len(a["words"]) for a in state["asr_segments"])
-            log(f"  whisper done: {len(state['asr_segments'])} segments, {words} words "
+            words = result.words
+            log(f"  {self.asr.name} done: {len(state['asr_segments'])} segments, "
+                f"{words} words "
                 f"with timestamps, checkpoint in {json_path.name}. {mem_snapshot()}")
             if self.word_timestamps and not words:
                 log("  ⚠ the model returned no word timestamps — speakers will be assigned "
@@ -661,6 +693,7 @@ class Transcriber:
                 state["speakers"] = sorted({s["speaker"] for s in state["segments"]
                                             if s.get("speaker")})
                 stages["diarize"] = "done"
+                state.setdefault("software", {})["diarize"] = software_versions()
                 log(f"  speakers: {len(state['speakers'])}, turns: {len(state['turns'])}, "
                     f"segments {before} → {len(state['segments'])} "
                     f"(split at speaker changes: {len(state['segments']) - before})")
@@ -699,6 +732,7 @@ class Transcriber:
                 if dimensions is not None:
                     self._park(dimensions.model)
                 log(f"  measurement done. {mem_snapshot()}")
+            state.setdefault("software", {})["analyze"] = software_versions()
             stages["analyze"] = ("done" if all(u.get("analyzed") for u in units)
                                  else "partial")
             # baselines are built from loudness and pitch, so they come after them. on an

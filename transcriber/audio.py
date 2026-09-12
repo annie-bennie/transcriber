@@ -4,16 +4,39 @@
 no machine learning here: loudness, pitch and voice quality are arithmetic over samples.
 """
 import math
+import shutil
 import subprocess
 from pathlib import Path
 
-from .config import (MAX_PITCH_DURATION, MIN_ACOUSTIC_DURATION, PITCH_MAX_HZ,
-                     PITCH_MIN_HZ, SAMPLE_RATE)
+from .config import (
+    MAX_PITCH_DURATION,
+    MIN_ACOUSTIC_DURATION,
+    PITCH_MAX_HZ,
+    PITCH_MIN_HZ,
+    SAMPLE_RATE,
+)
 from .logging import log
 
 VOICE_PITCH_FLOOR, VOICE_PITCH_CEILING = 60.0, 500.0
 VOICE_MIN_DURATION = 1.0
 VOICE_MAX_DURATION = 10.0
+
+
+def ffmpeg_executable() -> str:
+    """ffmpeg from the PATH if there is one, else the static build imageio-ffmpeg installs.
+
+    the second is what lets requirements.txt stand for the whole install: nobody has to put a
+    separate ffmpeg on the PATH first, in docker or out of it. if neither exists the plain name
+    is returned, so the call fails with the familiar "not found".
+    """
+    found = shutil.which("ffmpeg")
+    if found:
+        return found
+    try:
+        import imageio_ffmpeg
+        return imageio_ffmpeg.get_ffmpeg_exe()
+    except Exception:
+        return "ffmpeg"
 
 
 def decode_audio(src: Path, sample_rate: int = SAMPLE_RATE):
@@ -26,7 +49,7 @@ def decode_audio(src: Path, sample_rate: int = SAMPLE_RATE):
     import numpy as np
 
     cmd = [
-        "ffmpeg", "-nostdin", "-hide_banner", "-loglevel", "error", "-threads", "0",
+        ffmpeg_executable(), "-nostdin", "-hide_banner", "-loglevel", "error", "-threads", "0",
         "-i", str(src), "-vn", "-f", "s16le", "-acodec", "pcm_s16le",
         "-ac", "1", "-ar", str(sample_rate), "-",
     ]
@@ -36,9 +59,11 @@ def decode_audio(src: Path, sample_rate: int = SAMPLE_RATE):
     if result.returncode != 0:
         stderr = result.stderr.decode("utf-8", errors="replace")
         raise RuntimeError(
-            f"ffmpeg could not decode {src.name} (code {result.returncode}):\n{stderr[-2000:]}")
+            f"ffmpeg could not decode {src.name} (code {result.returncode}):"
+            f"\n{stderr[-2000:]}")
     if not result.stdout:
-        raise RuntimeError(f"ffmpeg returned an empty audio stream for {src.name} — no audio track?")
+        raise RuntimeError(f"ffmpeg returned an empty audio stream for {src.name} "
+                           "— no audio track?")
     audio = np.frombuffer(result.stdout, np.int16).astype(np.float32) / 32768.0
     del result
     return audio
@@ -57,8 +82,8 @@ class PitchTrack:
     """
 
     def __init__(self, audio, sample_rate):
-        import torchaudio
         import torch
+        import torchaudio
 
         self.values = None
         self.hop = None

@@ -1,0 +1,9 @@
+# deny by default. the build context is everything docker sends to the daemon, and this folder
+# is where recordings and their transcripts tend to sit. nothing goes in unless named here.
+*
+!transcribe.py
+!transcriber/
+!tools/diarize_diarizen.py
+!requirements.txt
+!docker/
+**/__pycache__

@@ -1,0 +1,28 @@
+# from the repository root:
+#
+#   INPUT_DIR=/path/to/recordings OUTPUT_DIR=/path/to/results \
+#     docker compose -f docker/compose.yaml run --rm transcriber "meeting.mp4" --language ru
+#
+# with an nvidia card, the transcriber-gpu service instead. both folders are required: a
+# default would be a folder inside this repository, the last place results belong.
+
+services:
+  transcriber: &transcriber
+    image: transcriber:cpu
+    build: { context: .., dockerfile: docker/Dockerfile }
+    working_dir: /in
+    volumes:
+      # read-only: the pipeline has no reason to change a recording
+      - ${INPUT_DIR:?set INPUT_DIR to the folder with the recordings}:/in:ro
+      - ${OUTPUT_DIR:?set OUTPUT_DIR to the folder for results}:/out
+      - models:/models
+
+  transcriber-gpu:
+    <<: *transcriber
+    image: transcriber:gpu
+    build: { context: .., dockerfile: docker/Dockerfile, args: { TORCH: cu128 } }
+    gpus: all
+
+volumes:
+  # named, so compose and a plain `docker run -v transcriber-models:/models` share one cache
+  models: { name: transcriber-models }

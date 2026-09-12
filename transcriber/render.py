@@ -9,7 +9,7 @@ from pathlib import Path
 from .analysis import format_delta_db, format_delta_semitones, format_z
 from .emotion import EMOTION_DIMENSION_GUIDE, EMOTION_DIMENSION_SHORT, EMOTION_DIMENSIONS
 from .logging import log
-from .speakers import describe_suspects, units_by_segment
+from .speakers import units_by_segment
 from .state import plain_text, write_text_atomic
 
 
@@ -179,7 +179,8 @@ def render_transcript(state: dict, drop_suspect: bool = False) -> str:
         tag = format_measurements(seg, unit_of.get(seg["id"]))
         if tag:
             prefix += f" ({tag})"
-        marker = ("⚠" if seg.get("suspect") else "") + ("?" if seg.get("speaker_uncertain") else "")
+        marker = (("⚠" if seg.get("suspect") else "")
+                  + ("?" if seg.get("speaker_uncertain") else ""))
         lines.append(f"{marker + ' ' if marker else ''}{prefix}: {seg['text'].strip()}")
         printed = True
 

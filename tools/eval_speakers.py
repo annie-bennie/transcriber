@@ -108,7 +108,8 @@ def evaluate(reference_chunks, segments, verbose=False):
             got = a[4] != b[4]
             total_switches += 1
             correct_switches += int(expected == got)
-    print(f"boundaries between neighbouring lines: {correct_switches}/{total_switches} correct")
+    print(f"boundaries between neighbouring lines: "
+          f"{correct_switches}/{total_switches} correct")
 
     if verbose:
         print()

@@ -1,0 +1,23 @@
+# the tests need no gpu, no models and no audio — they are logic over structures — so they
+# run on a plain runner in seconds. numpy is the only dependency they import.
+name: tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # both ends of the range requirements.txt supports
+        python-version: ["3.10", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: pip install numpy ruff
+      - run: python tests/test_pipeline.py
+      - run: ruff check .

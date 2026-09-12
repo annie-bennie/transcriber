@@ -106,7 +106,7 @@ is long gone:
 | `--rediarize` | off | label speakers again without touching recognition |
 | `--no-diarize` | off | do not separate speakers at all |
 | `--diarize-batch N` | 32 | pyannote batch size, lower it if vram runs short |
-| `--hf-token TOKEN` | from `HF_TOKEN` or the login cache | hugging face token |
+| `--hf-token TOKEN` | from `HF_TOKEN` or the login cache | hugging face token — only the optional pyannote models need one |
 
 which engine to pick is in [diarization.md](diarization.md).
 

@@ -54,6 +54,7 @@ PLAN.md
 transcripts/
 out/
 output/
+cmp/
 sample/
 samples/
 data/
@@ -163,3 +164,6 @@ ehthumbs.db
 Desktop.ini
 desktop.ini
 $RECYCLE.BIN/
+
+# exploratory llm reports, generated from transcripts
+llm-reports/

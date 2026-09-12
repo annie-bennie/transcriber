@@ -14,22 +14,50 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import numpy as np
 
-from transcriber.analysis import (analyze_dialogue, apply_dimension_z, apply_speaker_z,
-                                  apply_voice_z, build_dimension_stats,
-                                  build_speaker_stats, build_voice_stats, count_syllables,
-                                  format_delta_db, format_delta_semitones, format_z,
-                                  merge_speaker_intervals, overlap_seconds,
-                                  robust_baseline, union_seconds)
-from transcriber.config import (LOUDNESS_NOTABLE_DB, PITCH_NOTABLE_SEMITONES,
-                                SILENCE_FLOOR_DB)
-from transcriber.emotion import (DEVIATION_GUIDE, EMOTION_DIMENSION_GUIDE,
-                                 EMOTION_DIMENSIONS)
+from transcriber.analysis import (
+    analyze_dialogue,
+    apply_dimension_z,
+    apply_speaker_z,
+    apply_voice_z,
+    build_dimension_stats,
+    build_speaker_stats,
+    build_voice_stats,
+    count_syllables,
+    format_delta_db,
+    format_delta_semitones,
+    format_z,
+    merge_speaker_intervals,
+    overlap_seconds,
+    robust_baseline,
+    union_seconds,
+)
+from transcriber.asr import make_backend, split_long_segments
+from transcriber.compat import from_pretrained
+from transcriber.config import LOUDNESS_NOTABLE_DB, PITCH_NOTABLE_SEMITONES, SILENCE_FLOOR_DB
+from transcriber.emotion import DEVIATION_GUIDE, EMOTION_DIMENSION_GUIDE, EMOTION_DIMENSIONS
+from transcriber.logging import software_versions
+from transcriber.network import hub_reachable, prefer_local_models
 from transcriber.render import transcript_path
 from transcriber.sources import is_url
-from transcriber.speakers import (build_emotion_units, build_segments, build_turns,
-                                  flag_suspect_segments, refine_speaker_turns)
+from transcriber.speakers import (
+    build_emotion_units,
+    build_segments,
+    build_turns,
+    flag_suspect_segments,
+    refine_speaker_turns,
+)
 
 ok = True
+
+
+def _raises(call, kind):
+    try:
+        call()
+    except kind:
+        return True
+    except Exception:
+        return False
+    return False
 
 
 def check(name, got, want):
@@ -555,6 +583,111 @@ check("without speakers the name stays plain",
 check("a state that never got that far is plain too",
       transcript_path({}, out, "meeting").name, "meeting.txt")
 
+
+
+# =====================================================================
+#  the recognition backend contract
+# =====================================================================
+# an over-long segment becomes an over-long utterance, the emotion model reads only its first
+# MAX_EMOTION_DURATION seconds, and the label is then attached to all of it. whisper usually
+# stays under the ceiling, but nothing in it guarantees that.
+
+words = [{"text": f" w{i}", "start": float(i), "end": float(i + 1), "prob": 0.9}
+         for i in range(28)]
+long_seg = {"id": 0, "start": 0.0, "end": 28.0, "text": "x", "no_speech_prob": 0.1,
+            "avg_logprob": -0.2, "compression_ratio": 1.5, "words": words}
+
+pieces = split_long_segments([dict(long_seg)])
+check("an over-long segment is cut to the measurement ceiling",
+      max(p["end"] - p["start"] for p in pieces) <= 10.0, True)
+check("no word is lost in the cutting",
+      sum(len(p["words"]) for p in pieces), 28)
+check("the cut lands on a word boundary",
+      all(p["start"] == p["words"][0]["start"] and p["end"] == p["words"][-1]["end"]
+          for p in pieces), True)
+check("ids are renumbered so the pipeline can index them",
+      [p["id"] for p in pieces], list(range(len(pieces))))
+
+short = split_long_segments([dict(long_seg, end=5.0, words=words[:5])])
+check("a segment already short enough is untouched", len(short), 1)
+
+no_words = split_long_segments([dict(long_seg, words=[])])
+check("a segment with no word timings cannot be cut safely, so it is left alone",
+      len(no_words), 1)
+
+check("an unknown backend name is an error, not a silent fallback",
+      _raises(lambda: make_backend("gpt-whisper", "turbo", "cpu"), ValueError), True)
+
+# =====================================================================
+#  what produced a result
+# =====================================================================
+# read from package metadata, so this runs where nothing but numpy is installed — which is
+# exactly where a missing package must come out as absent rather than as a crash.
+
+versions = software_versions()
+check("the record names python and this package",
+      ("python" in versions, "transcriber" in versions), (True, True))
+check("every heavy dependency has an entry, installed or not",
+      all(name in versions for name in ("openai-whisper", "pyannote.audio", "torch")), True)
+check("an absent package is recorded as None, never as an error",
+      all(v is None or isinstance(v, str) for v in versions.values()), True)
+
+# =====================================================================
+#  no network, cached models
+# =====================================================================
+# without this, a run with no network waits out the hub's retries before every model load:
+# five minutes of a six-minute run in a container. nothing here opens a real connection.
+
+env = {}
+note = prefer_local_models(env, reachable=lambda: False)
+check("an unreachable hub switches the libraries to the local cache",
+      (note is not None, env.get("HF_HUB_OFFLINE")), (True, "1"))
+env = {}
+check("a reachable hub changes nothing",
+      (prefer_local_models(env, reachable=lambda: True), env), (None, {}))
+probed = []
+env = {"HF_HUB_OFFLINE": "0"}
+check("an explicit setting is the user's decision: not probed, not changed",
+      (prefer_local_models(env, reachable=lambda: probed.append(1) or False), env, probed),
+      (None, {"HF_HUB_OFFLINE": "0"}, []))
+
+
+def _refuse(address, timeout):
+    raise ConnectionRefusedError()
+
+
+class _Accepted:
+    def close(self):
+        pass
+
+
+check("a refused connection counts as unreachable", hub_reachable(connect=_refuse), False)
+check("an accepted connection counts as reachable",
+      hub_reachable(connect=lambda address, timeout: _Accepted()), True)
+
+# =====================================================================
+#  the token argument that changed its name
+# =====================================================================
+# pyannote.audio 4 takes `token`, the 3.1.1 fork inside diarizen `use_auth_token`. the wrong
+# one is a TypeError that the loaders report as a model that could not be loaded.
+
+
+class _Pyannote4:
+    @classmethod
+    def from_pretrained(cls, checkpoint, token=None, cache_dir=None):
+        return {"token": token}
+
+
+class _Pyannote3:
+    @classmethod
+    def from_pretrained(cls, checkpoint, hparams_file=None, use_auth_token=None):
+        return {"use_auth_token": use_auth_token}
+
+
+check("pyannote 4 gets the token as `token`",
+      from_pretrained(_Pyannote4, "m", "hf_x"), {"token": "hf_x"})
+check("pyannote 3.x gets it as `use_auth_token`",
+      from_pretrained(_Pyannote3, "m", "hf_x"), {"use_auth_token": "hf_x"})
 
 print()
 print("ALL PASSED" if ok else "FAILURES PRESENT")

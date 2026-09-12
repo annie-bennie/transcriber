@@ -29,13 +29,6 @@ if errorlevel 1 (
     exit /b 1
 )
 
-where ffmpeg >nul 2>nul
-if errorlevel 1 (
-    echo ffmpeg is not on the PATH - media files cannot be read without it.
-    echo   winget install ffmpeg
-    exit /b 1
-)
-
 "%PY%" -u "%~dp0transcribe.py" %*
 set RC=%ERRORLEVEL%
 echo.

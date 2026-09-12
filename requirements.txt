@@ -1,51 +1,52 @@
-# Dependencies of the main environment: recognition, pyannote diarization, emotion, acoustics.
+# the environment the pipeline runs in: recognition, speaker separation with diarizen, the
+# emotion scales and acoustics. the docker image installs exactly this file, so a local install
+# and the image are the same environment.
 #
-# this file is enough to get everything working. for more accurate speaker labelling there is
-# an optional second environment with diarizen — see requirements-diarizen.txt. it has to be
-# separate because diarizen brings its own fork of pyannote-audio 3.1.1, incompatible with the
-# pyannote.audio 4.x used here.
+# python 3.10, 3.11 or 3.12 — diarizen pins numpy 1.26.4, which has no build for 3.13.
 #
-# IMPORTANT: torch and torchaudio are deliberately left unpinned — install them separately and
-# for your own hardware, or you may end up with a build that does not support your gpu.
-# torch first, everything else after:
+# torch first, matched to the hardware and at 2.8.0 exactly. left to pip it arrives as whatever
+# build pypi offers, which on windows has no cuda at all.
 #
-#   NVIDIA (CUDA 13.0, current cards up to Blackwell):
-#     pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu130
-#   NVIDIA (CUDA 12.8):
-#     pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu128
-#   apple silicon and cpu:
-#     pip install torch torchaudio
+#   nvidia (cuda 12.8, rtx 50xx included):
+#     pip install torch==2.8.0 torchaudio==2.8.0 --index-url https://download.pytorch.org/whl/cu128
+#   no gpu:
+#     pip install torch==2.8.0 torchaudio==2.8.0 --index-url https://download.pytorch.org/whl/cpu
 #
-#   pip install -r requirements.txt
+# then:
+#     pip install -r requirements.txt
 #
-# ffmpeg is also needed on the PATH; it does not come from pip:
-#   windows: winget install Gyan.FFmpeg
-#   macos:   brew install ffmpeg
-#   ubuntu:  sudo apt install ffmpeg
+# ffmpeg comes with imageio-ffmpeg below. one already on the PATH is used first.
 
-# speech recognition
-openai-whisper>=20250625
+openai-whisper==20250625
 
-# diarization: who speaks when. 4.x can do community-1, 3.x only 3.1
-pyannote.audio>=4.0.3
+# speaker separation: diarizen and the pyannote-audio 3.1.1 fork it is built on. neither is on
+# pypi, so both come from source, pinned to the commit the pipeline was checked against — as an
+# archive rather than a git url, so git does not have to be installed.
+pyannote.audio @ https://github.com/BUTSpeechFIT/DiariZen/archive/844f5555b0a98acd0931511fc641a8c5b8ba92c7.zip#subdirectory=pyannote-audio
+diarizen @ https://github.com/BUTSpeechFIT/DiariZen/archive/844f5555b0a98acd0931511fc641a8c5b8ba92c7.zip
 
-# the emotion scales model (arousal, dominance, valence)
-transformers>=4.50.0
+# what diarizen imports but does not declare. numpy and accelerate at its own pins: numpy 2
+# breaks it, a newer accelerate changes the api.
+numpy==1.26.4
+accelerate==1.6.0
+h5py
+librosa
+scikit-learn
+pyyaml
+toml
 
-# reading and writing audio
-soundfile>=0.13.1
-numpy>=2.0
+# the emotion scales. transformers 4.x, not 5: 5 needs huggingface_hub 1.x, and the pyannote
+# fork still passes hub functions an argument 1.x removed.
+transformers==4.50.0
+huggingface_hub==0.36.0
 
-# memory reporting in the log. without it the pipeline runs, it just says nothing about ram
-psutil>=7.0
+soundfile>=0.12
+psutil>=5.9
+tqdm
+imageio-ffmpeg==0.6.0
 
-# --- optional: voice quality (jitter / shimmer / HNR) ------------------------------
-# without it the pipeline runs, it just does not compute those three values.
-#   pip install praat-parselmouth
-# praat-parselmouth>=0.4
-
-# --- optional: running the open benchmarks (tools/benchmark.py) --------------------
-# the pipeline itself does not need these; install them only to measure WER and DER.
-#   pip install datasets jiwer
-# datasets>=4.0
-# jiwer>=3.0
+# --- optional --------------------------------------------------------------------------------
+#   pip install praat-parselmouth    # voice quality: jitter, shimmer, HNR
+#   pip install yt-dlp               # a youtube link or a playlist as the input
+#   pip install datasets jiwer       # tools/benchmark.py
+#   requirements-pyannote.txt        # pyannote 4 with plda, in an environment of its own

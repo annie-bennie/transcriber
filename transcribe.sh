@@ -33,12 +33,5 @@ if ! "$PY" -c "import whisper, numpy" >/dev/null 2>&1; then
     exit 1
 fi
 
-if ! command -v ffmpeg >/dev/null 2>&1; then
-    echo "ffmpeg is not on the PATH — media files cannot be read without it." >&2
-    echo "  macos:  brew install ffmpeg" >&2
-    echo "  ubuntu: sudo apt install ffmpeg" >&2
-    exit 1
-fi
-
 # -u turns off buffering so progress shows as it happens, not after a stage finishes.
 exec "$PY" -u "$DIR/transcribe.py" "$@"

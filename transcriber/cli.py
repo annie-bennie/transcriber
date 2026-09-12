@@ -8,16 +8,23 @@ import traceback
 from datetime import datetime
 from pathlib import Path
 
-from .config import (DEFAULT_LANGUAGE, DEFAULT_WHISPER_MODEL, EMOTION_UNIT_TARGET,
-                     MEDIA_EXTS)
+from .config import DEFAULT_LANGUAGE, DEFAULT_WHISPER_MODEL, EMOTION_UNIT_TARGET, MEDIA_EXTS
 from .emotion import DEFAULT_EMOTION_DIM_MODEL
 from .logging import close_log_file, log, log_env, open_log_file
+from .network import prefer_local_models
 from .pipeline import Transcriber
 from .render import transcript_path, write_combined, write_transcript_txt
 from .sources import enumerate_items, existing_result, fetch_one, is_url
 from .speakers import describe_suspects
-from .state import (load_state, rebuild_derived, save_state, state_is_complete,
-                    state_matches_request, state_path, state_progress)
+from .state import (
+    load_state,
+    rebuild_derived,
+    save_state,
+    state_is_complete,
+    state_matches_request,
+    state_path,
+    state_progress,
+)
 
 DESCRIPTION = """\
 Transcribe meetings, lectures and interviews: who spoke, what they said, and how it
@@ -63,7 +70,8 @@ def build_parser():
                              "a whole playlist (needs yt-dlp)")
 
     group = parser.add_argument_group("output")
-    group.add_argument("--output-dir", help="where to put results (default: <input>/transcripts)")
+    group.add_argument("--output-dir",
+                       help="where to put results (default: <input>/transcripts)")
     group.add_argument("--playlist-limit", type=int, default=0, metavar="N",
                        help="take only the first N items of a playlist or search "
                             "(default: all of them)")
@@ -92,7 +100,8 @@ def build_parser():
     group.add_argument("--diarizen-model", default=None, metavar="MODEL",
                        help="diarizen model (default: diarizen-wavlm-large-s80-md-v2)")
     group.add_argument("--diarizen-python", default=None, metavar="PATH",
-                       help="interpreter of the diarizen environment. DIARIZEN_PYTHON or a "
+                       help="interpreter of a separate diarizen environment — not needed when "
+                            "diarizen is installed here. DIARIZEN_PYTHON or a "
                             ".venv-diarizen folder next to the project work too")
     group.add_argument("--diarize-batch", type=int, default=None,
                        help="pyannote batch size; lower it if vram runs short")
@@ -284,7 +293,13 @@ def main(argv=None):
     except Exception as e:
         print(f"(could not prepare the output folder: {e})", flush=True)
 
+    # before log_env: it imports pyannote, and with it the hub library that reads
+    # HF_HUB_OFFLINE once, at import. rebuilding loads no models, so it is not worth a probe.
+    offline_note = None if args.rebuild_txt else prefer_local_models()
+
     log_env()
+    if offline_note:
+        log(offline_note)
 
     if from_url:
         if args.rebuild_txt:

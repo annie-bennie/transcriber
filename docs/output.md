@@ -61,6 +61,9 @@ schema_version          format version. a mismatch rebuilds the derived layer, k
 source                  name, path, size, duration
 params                  every setting this result was computed with
 stages                  transcribe / diarize / analyze: done, partial, failed or null
+software                per stage: python, this package and the libraries that shape a
+                        result, as they were when that stage ran. per stage because a
+                        resumed run can mix installs
 
 ── raw layer ──────────────────────────────────────────────────────────
 text                    whisper's continuous text, as it came

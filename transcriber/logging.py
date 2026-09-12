@@ -255,7 +255,8 @@ def log_env():
         except Exception as e:
             log(f"{mod}: not importable ({e})")
     try:
-        out = subprocess.run(["ffmpeg", "-version"], capture_output=True)
+        from .audio import ffmpeg_executable
+        out = subprocess.run([ffmpeg_executable(), "-version"], capture_output=True)
         log(f"ffmpeg: {out.stdout.decode('utf-8', 'replace').splitlines()[0]}")
     except Exception as e:
         log(f"ffmpeg: not found ({e})")
@@ -266,3 +267,41 @@ def log_env():
         pass
     log(f"memory at start: {mem_snapshot()}")
     log("=" * 70)
+
+
+# distributions whose versions decide what a result looks like. read from package metadata
+# rather than imported: importing pyannote only to learn its version costs seconds on a run
+# that diarized with diarizen and never loaded it.
+SOFTWARE = ("openai-whisper", "pyannote.audio", "transformers", "torch", "torchaudio",
+            "numpy", "soundfile")
+
+
+def software_versions() -> dict:
+    """What produced a result, to be stored next to it.
+
+    kept per stage in the json rather than once: a run that stopped after recognition and was
+    resumed under a newer install has a transcript from one set of versions and measurements
+    from another, and a single record would say otherwise. diarizen runs under its own
+    interpreter and is identified by its model name in params, not here.
+    """
+    import os
+    from importlib import metadata
+
+    versions = {"python": sys.version.split()[0]}
+    try:
+        from . import __version__
+        versions["transcriber"] = __version__
+    except Exception:
+        versions["transcriber"] = None
+    for dist in SOFTWARE:
+        try:
+            versions[dist] = metadata.version(dist)
+        except metadata.PackageNotFoundError:
+            versions[dist] = None
+    torch = sys.modules.get("torch")
+    if torch is not None:
+        versions["cuda"] = getattr(torch.version, "cuda", None)
+    if os.environ.get("TRANSCRIBER_IMAGE_VARIANT"):
+        # set inside the docker image: cpu, cu128 or cu130
+        versions["image"] = os.environ["TRANSCRIBER_IMAGE_VARIANT"]
+    return versions
