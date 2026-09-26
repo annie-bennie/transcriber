@@ -24,6 +24,51 @@ disk space, and the optional packages. every line that is not a tick comes with 
 fixes it. it loads no models — a second or two — and exits with 1 only if a run could not start
 at all, so it can be used as a smoke test after an install.
 
+## live, from a microphone
+
+```bash
+python transcribe.py --live --language ru
+python transcribe.py --live-devices            # which inputs can record
+python transcribe.py --live --live-device 1     # listen to a particular one
+python transcribe.py --live --no-diarize        # text only, no speaker labels
+```
+
+it prints speech as it is recognised and writes it to a txt named by the date — by default in
+the documents folder, as the system reports it rather than as `~/Documents` guesses:
+
+```
+C:\Users\you\OneDrive\Documents\2026-09-27.txt
+```
+
+`--output-dir` puts it elsewhere, and on windows that is worth knowing: the documents folder is
+usually synced to onedrive, so a recording of a private conversation leaves the machine. for
+anything sensitive, give a local folder.
+
+several sessions on the same day go into the same file, each under its own `--- live, 14:32 ---`
+header, and nothing already in the file is touched. the file is rewritten as the session goes on,
+because a speaker label can be corrected after a line was written — what is on disk keeps matching
+what the screen last said. the audio itself is never kept.
+
+the offline run is still what produces a result to read afterwards: it sees the whole recording.
+
+what it costs, measured before it was built (the numbers are in PLAN, stage 9):
+
+| | |
+|---|---|
+| a word stops changing | about 1.8 s after it is spoken |
+| a line is finished | when the speaker pauses — 3.8 s after its last word, typically |
+| text against a normal run of the same model | 14% of words differ on a close microphone, 16–23% in a room |
+| speaker labels, two people | agree with a normal run on 95–100% of words |
+| speaker labels, six people | 87%, and about one line in six has its label corrected after it was shown |
+
+so three things are drawn differently, because they are not equally certain: the rough tail is
+redrawn in place, a finished line is printed with its speaker, and a correction to a speaker
+already printed appears as a separate note — a terminal cannot go back and rewrite a line.
+
+use it to see that something is being heard, to follow a conversation, to check a microphone.
+do not use it for a transcript anyone will read: for that, record the audio and run the normal
+way, which sees the whole recording and is measurably better.
+
 ## from a url
 
 a single video or a whole playlist, anything yt-dlp can reach. only the audio is fetched —

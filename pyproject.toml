@@ -48,6 +48,9 @@ voice = ["praat-parselmouth>=0.4"]
 bench = ["datasets>=4.0", "jiwer>=3.0", "scikit-learn>=1.3"]
 # a youtube link or playlist as the input
 url = ["yt-dlp>=2024.1"]
+# --live: listening to a microphone. not in the main list on purpose — the offline pipeline never
+# touches an input device, and on linux this needs a system portaudio next to the wheel.
+live = ["sounddevice>=0.4"]
 
 [project.scripts]
 transcribe = "transcriber.cli:run"

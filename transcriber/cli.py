@@ -68,6 +68,14 @@ def build_parser():
     parser.add_argument("input", nargs="?",
                         help="media file, a folder to walk, or a url — a single video or "
                              "a whole playlist (needs yt-dlp)")
+    parser.add_argument("--live", action="store_true",
+                        help="listen to a microphone and print speech as it is recognised. "
+                             "text appears about two seconds after it is spoken and differs "
+                             "from a normal run — see docs/usage.md")
+    parser.add_argument("--live-device", default=None, metavar="INDEX",
+                        help="which input to listen to (a number from --live-devices)")
+    parser.add_argument("--live-devices", action="store_true",
+                        help="list the inputs that can record, and exit")
     parser.add_argument("--check", action="store_true",
                         help="report whether this machine is ready to run — interpreter, "
                              "torch and the card, ffmpeg, models already downloaded, disk, "
@@ -75,7 +83,8 @@ def build_parser():
 
     group = parser.add_argument_group("output")
     group.add_argument("--output-dir",
-                       help="where to put results (default: <input>/transcripts)")
+                       help="where to put results (default: <input>/transcripts; with --live, "
+                            "the documents folder)")
     group.add_argument("--playlist-limit", type=int, default=0, metavar="N",
                        help="take only the first N items of a playlist or search "
                             "(default: all of them)")
@@ -268,6 +277,21 @@ def run_from_url(args, output_dir: Path) -> int:
 def main(argv=None):
     parser = build_parser()
     args = parser.parse_args(argv)
+
+    if args.live_devices:
+        from .listen import input_devices
+        for index, name, channels in input_devices():
+            print(f"{index:3}  {name}  ({channels} ch)")
+        return 0
+
+    if args.live:
+        # the live mode keeps nothing: no json, no txt, no audio. it is for watching, and the
+        # offline path is what produces a result to read afterwards.
+        from .listen import run_live
+        return run_live(model_name=args.model, language=args.language, device=args.device,
+                        speakers=not args.no_diarize,
+                        input_device=int(args.live_device) if args.live_device else None,
+                        output_dir=args.output_dir)
 
     if args.check:
         # before anything heavy: this is the question "will a run work here at all"

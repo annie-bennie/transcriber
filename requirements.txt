@@ -48,5 +48,6 @@ imageio-ffmpeg==0.6.0
 # --- optional --------------------------------------------------------------------------------
 #   pip install praat-parselmouth    # voice quality: jitter, shimmer, HNR
 #   pip install yt-dlp               # a youtube link or a playlist as the input
+#   pip install sounddevice          # --live: listening to a microphone
 #   pip install datasets jiwer       # tools/benchmark.py
 #   requirements-pyannote.txt        # pyannote 4 with plda, in an environment of its own

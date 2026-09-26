@@ -7,6 +7,7 @@ no models, no gpu, no audio — only logic over structures. run with:
 the package is found relative to this file. an absolute path here once meant that after the
 project moved the tests kept checking a copy at the old address and passed quietly.
 """
+import io
 import sys
 from pathlib import Path
 
@@ -37,6 +38,8 @@ from transcriber.compat import from_pretrained
 from transcriber.config import LOUDNESS_NOTABLE_DB, PITCH_NOTABLE_SEMITONES, SILENCE_FLOOR_DB
 from transcriber.diarizen import interpreter
 from transcriber.emotion import DEVIATION_GUIDE, EMOTION_DIMENSION_GUIDE, EMOTION_DIMENSIONS
+from transcriber.listen import Screen, clock
+from transcriber.live import Live
 from transcriber.logging import software_versions
 from transcriber.network import hub_reachable, prefer_local_models
 from transcriber.render import transcript_path
@@ -48,6 +51,7 @@ from transcriber.speakers import (
     flag_suspect_segments,
     refine_speaker_turns,
 )
+from transcriber.transcript import LiveTranscript, live_path
 
 ok = True
 
@@ -739,6 +743,122 @@ check("this environment, when diarizen is installed here",
       Path(sys.executable))
 check("nothing anywhere is None, not a guess",
       interpreter(None, environ={}, exists=never, importable=lambda name: False), None)
+
+# =====================================================================
+#  the live mode: what it promises to emit, and when
+# =====================================================================
+# four kinds of event, because four different moments — a word stops changing about a second
+# after it is spoken, the line it belongs to only ends when the speaker pauses, the rough tail
+# changes constantly, and a speaker label can be corrected after it was shown. an interface
+# draws them differently, so the contract is worth a test that needs no model, no microphone.
+
+
+class _ScriptedWhisper:
+    """Stands in for whisper: two words near the end of whatever window it is given.
+
+    it cannot know where the window sits in the recording — neither does whisper — so the words
+    are placed relative to the chunk and the engine is the one that shifts them into the
+    recording's clock. that is exactly the arithmetic worth testing.
+    """
+
+    def __init__(self):
+        self.calls = 0
+
+    def transcribe(self, audio, language=None, verbose=False, word_timestamps=True,
+                   condition_on_previous_text=False):
+        seconds = len(audio) / 16000
+        self.calls += 1
+        return {"segments": [{"words": [
+            {"word": f" settled{self.calls}", "start": seconds - 2.0, "end": seconds - 1.5},
+            {"word": f" rough{self.calls}", "start": seconds - 0.5, "end": seconds - 0.2},
+        ]}]}
+
+
+scripted = _ScriptedWhisper()
+live = Live(scripted, language="ru", speakers=None, window=8.0, step=1.0, settle=1.0,
+            recluster=0)
+seen = []
+for _ in range(4):
+    seen.extend(live.push(np.zeros(16000, dtype="float32")))
+
+check("a pass runs once per step of audio", scripted.calls, 4)
+check("words below the horizon are reported as final, in order",
+      [word["text"] for event in seen if event["kind"] == "final" for word in event["words"]],
+      ["settled2", "settled3", "settled4"])
+# the first pass has one second of audio, so its word would start before the recording did.
+# a word cannot be dated outside the stream, and the engine drops it rather than moving it.
+check("a word that would start before the recording is dropped, not shifted",
+      "settled1" not in [word["text"] for event in seen if event["kind"] == "final"
+                         for word in event["words"]], True)
+check("the tail is reported as rough, and changes every pass",
+      [event["text"] for event in seen if event["kind"] == "partial"],
+      ["rough1", "rough2", "rough3", "rough4"])
+check("a final word is dated in the recording's clock, not the window's",
+      [round(word["end"], 1) for event in seen if event["kind"] == "final"
+       for word in event["words"]], [0.5, 1.5, 2.5])
+check("no line is finished while the speaker keeps going",
+      [event for event in seen if event["kind"] == "settled"], [])
+
+closing = live.finish()
+check("the stream ending finishes the line that was open",
+      [(event["kind"], event["text"]) for event in closing],
+      [("settled", "settled2 settled3 settled4")])
+check("a line with no speaker says so rather than inventing one",
+      closing[0]["speaker"], None)
+
+
+# what the terminal does with those events: the rough tail is redrawn in place, a finished line
+# is printed, and a correction is a separate note — a terminal cannot rewrite a printed line.
+screen = Screen(out=io.StringIO())
+screen.show({"kind": "final", "words": [{"text": "ну", "start": 0.0, "end": 0.4}]})
+screen.show({"kind": "partial", "text": "вот", "words": []})
+screen.show({"kind": "settled", "start": 61.0, "end": 62.0, "text": "ну вот", "speaker": None})
+screen.show({"kind": "relabel", "pieces": [{"start": 61.0, "speaker": "SPEAKER_01"}]})
+printed = screen.out.getvalue()
+check("the rough tail is drawn after the words that are already final",
+      "ну вот" in printed.split("\r")[2], True)
+check("a finished line carries its speaker and its time", "[? 01:01] ну вот" in printed, True)
+check("an unknown speaker is printed as a question mark, not as a name",
+      "[SPEAKER" in printed.split("speakers corrected")[0], False)
+check("a correction names the line it applies to",
+      "speakers corrected: 01:01 → SPEAKER_01" in printed, True)
+check("minutes and seconds, not raw seconds", (clock(0), clock(61), clock(3599)),
+      ("00:00", "01:01", "59:59"))
+
+# =====================================================================
+#  what a live session leaves on disk
+# =====================================================================
+# the live mode kept nothing at first, which was surprising rather than safe: people talk into
+# it and then look for the text. it writes a txt named by the date. two things have to hold — a
+# speaker corrected later must reach the file, and an earlier session in the same file must
+# survive being rewritten.
+
+from datetime import datetime  # noqa: E402
+
+when = datetime(2026, 9, 27, 14, 32)
+before = ["--- live, 09:00, ru ---", "[SPEAKER_00 00:01] раньше"]
+paper = LiveTranscript(Path("nowhere") / "x.txt", language="ru", when=when,
+                       existing=chr(10).join(before))
+paper.add(61.4, "SPEAKER_00", "ну что")
+paper.add(75.0, None, "как ваши дела")
+rendered = paper.render().splitlines()
+
+check("the date names the file, the folder is asked of the system",
+      live_path("C:/somewhere", when).name, "2026-09-27.txt")
+# the file reads: the earlier session, a blank line, this session's header, then its lines
+check("a session marks where it begins", rendered[3], "--- live, 14:32, ru ---")
+check("what was in the file before is kept", rendered[0], "--- live, 09:00, ru ---")
+check("lines carry the speaker and the time",
+      rendered[4], "[SPEAKER_00 01:01] ну что")
+check("a line with no speaker yet says so rather than inventing one",
+      rendered[5], "[? 01:15] как ваши дела")
+
+paper.relabel([{"start": 75.0, "speaker": "SPEAKER_01"}])
+check("a speaker corrected later reaches the file, matched by the line's own time",
+      paper.render().splitlines()[5], "[SPEAKER_01 01:15] как ваши дела")
+paper.relabel([{"start": 999.0, "speaker": "SPEAKER_09"}])
+check("a correction for a line that is not there changes nothing",
+      [line["speaker"] for line in paper.lines], ["SPEAKER_00", "SPEAKER_01"])
 
 print()
 print("ALL PASSED" if ok else "FAILURES PRESENT")

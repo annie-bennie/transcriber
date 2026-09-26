@@ -37,6 +37,7 @@ OPTIONAL = {
     "parselmouth": ("voice quality: jitter, shimmer, HNR", "pip install praat-parselmouth"),
     "yt_dlp": ("a youtube link or playlist as the input", "pip install yt-dlp"),
     "jiwer": ("WER and DER benchmarks in tools/", "pip install datasets jiwer"),
+    "sounddevice": ("--live: listening to a microphone", "pip install sounddevice"),
 }
 
 
