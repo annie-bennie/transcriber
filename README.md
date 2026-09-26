@@ -63,8 +63,8 @@ across recordings and languages. the reasoning and the measurements are in
 
 ## requirements
 
-- python 3.10, 3.11 or 3.12, and one `pip install -r requirements.txt` after torch —
-  ffmpeg and diarizen come with it
+- python 3.10, 3.11 or 3.12 — and `./install.sh` (or `.\install.ps1` on windows) does the
+  rest: it picks the torch build for your card, installs everything, and checks the result
 - an nvidia gpu is strongly preferred; it runs on cpu, several times slower
 - about 2.5 GB for model weights, downloaded on first run
 - or none of the above but docker: [one image](docs/install.md#docker-instead), for cpu or an
@@ -74,13 +74,15 @@ across recordings and languages. the reasoning and the measurements are in
 ## speed
 
 measured on the machine this was built on — ryzen 7 7800X3D, rtx 5080 (16 GB), 63 GB ram,
-windows 11, python 3.13, cuda 13. one hour of audio, full pass from scratch:
+windows 11, python 3.10, torch 2.8 on cuda 12.8. one hour of audio, full pass from scratch,
+4 minutes 44 seconds in total:
 
 | stage | time |
 |---|---|
-| recognition (whisper turbo) | ~2.5 min |
-| speaker separation | 40 s (pyannote) or 2 min (diarizen) |
-| emotion, loudness, pitch | ~30 s |
+| decoding the audio | 17 s |
+| recognition (whisper turbo) | 2 min 11 s |
+| speaker separation (diarizen) | 1 min 54 s |
+| emotion, loudness, pitch | 18 s |
 | voice quality, if enabled | +15 s |
 
 models load only when a stage actually needs them. a finished file is redrawn in four

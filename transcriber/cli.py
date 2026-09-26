@@ -65,9 +65,13 @@ def build_parser():
         description=DESCRIPTION,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.add_argument("input",
+    parser.add_argument("input", nargs="?",
                         help="media file, a folder to walk, or a url — a single video or "
                              "a whole playlist (needs yt-dlp)")
+    parser.add_argument("--check", action="store_true",
+                        help="report whether this machine is ready to run — interpreter, "
+                             "torch and the card, ffmpeg, models already downloaded, disk, "
+                             "optional packages — and exit")
 
     group = parser.add_argument_group("output")
     group.add_argument("--output-dir",
@@ -262,7 +266,18 @@ def run_from_url(args, output_dir: Path) -> int:
 
 
 def main(argv=None):
-    args = build_parser().parse_args(argv)
+    parser = build_parser()
+    args = parser.parse_args(argv)
+
+    if args.check:
+        # before anything heavy: this is the question "will a run work here at all"
+        from .check import collect, ready, render
+        checks = collect(args.model, args.diarizen_python or os.environ.get("DIARIZEN_PYTHON"))
+        print(render(checks))
+        return 0 if ready(checks) else 1
+
+    if not args.input:
+        parser.error("give a media file, a folder or a url — or --check to test this machine")
 
     from_url = is_url(args.input)
     input_path = None

@@ -12,6 +12,18 @@ python transcribe.py "lecture.mp4"             # any platform
 transcribe "lecture.mp4"                       # after pip install -e .
 ```
 
+## is this machine ready
+
+```bash
+python transcribe.py --check
+```
+
+prints what is installed and what is not: the interpreter, torch and whether it sees the card,
+which ffmpeg was found, diarizen and pyannote, which model weights are already downloaded, free
+disk space, and the optional packages. every line that is not a tick comes with the command that
+fixes it. it loads no models — a second or two — and exits with 1 only if a run could not start
+at all, so it can be used as a smoke test after an install.
+
 ## from a url
 
 a single video or a whole playlist, anything yt-dlp can reach. only the audio is fetched —

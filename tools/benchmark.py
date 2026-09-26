@@ -441,9 +441,21 @@ def diarize_pyannote(audio, refine, margin=None):
 
 
 def diarize_diarizen(audio, python_path, model=None):
+    """Diarizen in a subprocess, the way the pipeline runs it.
+
+    where the interpreter is comes from transcriber.diarizen, not from a second guess here:
+    this function used to assume a separate environment, so with diarizen installed alongside
+    everything else every call failed and the benchmark printed DER 100%.
+    """
     import soundfile as sf
 
-    helper = Path(__file__).resolve().parent / "diarize_diarizen.py"
+    from transcriber.diarizen import helper as diarizen_helper
+    from transcriber.diarizen import interpreter
+
+    python_path = python_path or interpreter()
+    if python_path is None:
+        raise RuntimeError("no environment with diarizen found — see docs/install.md")
+    helper = diarizen_helper()
     with tempfile.TemporaryDirectory() as tmp:
         wav = Path(tmp) / "a.wav"
         out = Path(tmp) / "t.json"

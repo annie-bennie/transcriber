@@ -10,6 +10,19 @@ alike.
 
 python 3.10, 3.11 or 3.12 — diarizen pins numpy 1.26.4, which has no build for 3.13.
 
+the short way — one command that does everything below and checks the result:
+
+```bash
+git clone <repo> && cd transcriber
+./install.sh                  # windows: .\install.ps1
+```
+
+it finds a python between 3.10 and 3.12 — or uses `uv` to fetch one, if `uv` is installed — picks
+the torch build from whether an nvidia card is present, installs the rest, and finishes by running
+`--check`. `--cpu` forces the build without cuda, `--venv <path>` puts the environment elsewhere.
+
+the same thing by hand, which is also what the script does:
+
 ```bash
 git clone <repo> && cd transcriber
 python -m venv .venv
@@ -192,9 +205,13 @@ the pyannote models are gated — see [model access](#model-access).
 ## checking it works
 
 ```bash
-python tests/test_pipeline.py     # logic only, no models, a couple of seconds
+python transcribe.py --check      # the machine: torch, the card, ffmpeg, models, disk
+python tests/test_pipeline.py     # the logic: no models, a couple of seconds
 ./transcribe.sh "some.mp4"
 ```
+
+`--check` exits with 1 when something essential is missing, so it works as a smoke test in a
+script. it names the command to run for each missing piece.
 
 in the log, `pyannote.audio: 3.1.1` and `diarization (diarizen, …)` mean the default
 environment is the one running.

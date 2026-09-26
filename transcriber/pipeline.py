@@ -6,11 +6,9 @@ raising a model for it costs a dozen seconds and several gigabytes for nothing �
 resume or a --rediarize that was pure waste. each model comes up on first use.
 """
 import gc
-import importlib.util
 import json
 import os
 import subprocess
-import sys
 import tempfile
 import time
 import traceback
@@ -188,29 +186,14 @@ class Transcriber:
 
     # ------------------------------------------------------------ diarization
     def _diarizen_python(self):
-        """Interpreter of the diarizen environment, if there is one.
+        """Interpreter of the environment that has diarizen — this one, or another.
 
-        order: explicit --diarizen-python, the DIARIZEN_PYTHON variable, an environment next
-        to the project. the pipeline itself runs under its own interpreter — diarizen comes
-        up as a separate process.
+        the order and the reasons live in transcriber/diarizen.py, so that the benchmark tools
+        resolve it exactly the same way.
         """
-        candidates = []
-        if self.diarizen_python:
-            candidates.append(Path(self.diarizen_python))
-        if os.environ.get("DIARIZEN_PYTHON"):
-            candidates.append(Path(os.environ["DIARIZEN_PYTHON"]))
-        root = Path(__file__).resolve().parent.parent
-        for name in (".venv-diarizen", "diarizen-venv"):
-            candidates.append(root / name / "Scripts" / "python.exe")
-            candidates.append(root / name / "bin" / "python")
-        # one environment holding diarizen next to everything else — the docker image is built
-        # that way — needs no second interpreter: the helper runs under this one
-        if importlib.util.find_spec("diarizen") is not None:
-            candidates.append(Path(sys.executable))
-        for candidate in candidates:
-            if candidate.exists():
-                return candidate
-        return None
+        from .diarizen import interpreter
+
+        return interpreter(self.diarizen_python)
 
     def _diarize_diarizen(self, audio):
         """Run diarizen as a subprocess. returns a list of turns or None."""

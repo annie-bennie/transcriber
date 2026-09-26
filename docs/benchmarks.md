@@ -22,8 +22,9 @@ results and how to read them: [diarization.md](diarization.md#benchmark).
 
 ## speech recognition
 
-standard russian test sets, whisper `turbo`, 40 clips each, with the normalisation usually
-applied for russian:
+standard russian test sets, whisper `turbo`, up to 40 clips from each (podlodka's test split
+yields 20), with the normalisation usually applied for russian. re-measured in the environment
+that ships now — python 3.10, torch 2.8 — and the numbers did not move:
 
 | set | what it is | WER | CER |
 |---|---|---:|---:|
@@ -32,7 +33,7 @@ applied for russian:
 | [SOVA RuDevices](https://huggingface.co/datasets/bond005/sova_rudevices) | short household commands | 15.5% | 6.7% |
 
 ```bash
-python tools/benchmark.py wer --clips 100
+python tools/benchmark.py wer --clips 40
 ```
 
 ## emotion models

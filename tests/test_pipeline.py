@@ -32,8 +32,10 @@ from transcriber.analysis import (
     union_seconds,
 )
 from transcriber.asr import make_backend, split_long_segments
+from transcriber.check import FAIL, OK, WARN, line, ready, render
 from transcriber.compat import from_pretrained
 from transcriber.config import LOUDNESS_NOTABLE_DB, PITCH_NOTABLE_SEMITONES, SILENCE_FLOOR_DB
+from transcriber.diarizen import interpreter
 from transcriber.emotion import DEVIATION_GUIDE, EMOTION_DIMENSION_GUIDE, EMOTION_DIMENSIONS
 from transcriber.logging import software_versions
 from transcriber.network import hub_reachable, prefer_local_models
@@ -688,6 +690,55 @@ check("pyannote 4 gets the token as `token`",
       from_pretrained(_Pyannote4, "m", "hf_x"), {"token": "hf_x"})
 check("pyannote 3.x gets it as `use_auth_token`",
       from_pretrained(_Pyannote3, "m", "hf_x"), {"use_auth_token": "hf_x"})
+
+# =====================================================================
+#  is this machine ready
+# =====================================================================
+# --check has to say what is missing and what to do about it, and it has to be honest about
+# whether a run can start at all: a warning is not a refusal.
+
+sample = [line(OK, "python", "3.10.19"),
+          line(WARN, "torch", "no card in use", "reinstall from the cu128 index"),
+          line(FAIL, "ffmpeg", "cannot be run", "pip install imageio-ffmpeg")]
+report = render(sample)
+check("every check is one line, with its mark",
+      [row.split()[0] for row in report.splitlines() if row and not row.startswith(" ")][:3],
+      ["✓", "⚠", "✗"])
+check("a hint is printed for what is not ok, and only for that",
+      (report.count("→"), "cu128" in report, "imageio-ffmpeg" in report), (2, True, True))
+check("a missing essential is reported as blocking", ready(sample), False)
+check("warnings alone still allow a run", ready(sample[:2]), True)
+check("nothing missing reads as ready", render(sample[:1]).splitlines()[-1], "ready to run.")
+
+# =====================================================================
+#  where diarizen is
+# =====================================================================
+# three layouts have to work without asking: diarizen in this environment (the default install
+# and the image), a separate environment named by flag or variable, one next to the project.
+# the benchmark once kept its own copy of this and never learned the first case — every
+# subprocess
+# failed and it reported DER 100% while the pipeline was labelling the same audio correctly.
+
+never = lambda path: False          # noqa: E731 — a stand-in filesystem, not a definition
+always = lambda path: True          # noqa: E731
+
+check("an interpreter given by hand wins over everything else",
+      str(interpreter("/given/python", environ={"DIARIZEN_PYTHON": "/from/var"},
+                      exists=always, importable=lambda name: True)),
+      str(Path("/given/python")))
+check("then the variable",
+      str(interpreter(None, environ={"DIARIZEN_PYTHON": "/from/var"},
+                      exists=always, importable=lambda name: True)),
+      str(Path("/from/var")))
+check("then an environment next to the project",
+      interpreter(None, environ={}, root="/project", exists=always,
+                  importable=lambda name: True).parts[-3:],
+      (".venv-diarizen", "Scripts", "python.exe"))
+check("this environment, when diarizen is installed here",
+      interpreter(None, environ={}, exists=never, importable=lambda name: True),
+      Path(sys.executable))
+check("nothing anywhere is None, not a guess",
+      interpreter(None, environ={}, exists=never, importable=lambda name: False), None)
 
 print()
 print("ALL PASSED" if ok else "FAILURES PRESENT")
