@@ -60,6 +60,7 @@ across recordings and languages. the reasoning and the measurements are in
 - [docs/measurements.md](docs/measurements.md) — what the numbers mean and how far to trust them
 - [docs/diarization.md](docs/diarization.md) — choosing an engine, benchmark results
 - [docs/benchmarks.md](docs/benchmarks.md) — reproducing the numbers on your own data
+- [docs/development.md](docs/development.md) — source layout, evaluation tools, and checks
 
 ## requirements
 

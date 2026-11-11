@@ -13,7 +13,7 @@ python 3.10, 3.11 or 3.12 — diarizen pins numpy 1.26.4, which has no build for
 the short way — one command that does everything below and checks the result:
 
 ```bash
-git clone <repo> && cd transcriber
+git clone https://github.com/annie-bennie/transcriber.git && cd transcriber
 ./install.sh                  # windows: .\install.ps1
 ```
 
@@ -24,7 +24,7 @@ the torch build from whether an nvidia card is present, installs the rest, and f
 the same thing by hand, which is also what the script does:
 
 ```bash
-git clone <repo> && cd transcriber
+git clone https://github.com/annie-bennie/transcriber.git && cd transcriber
 python -m venv .venv
 # windows: .venv\Scripts\activate
 source .venv/bin/activate
