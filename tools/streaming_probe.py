@@ -107,7 +107,9 @@ def run(args):
     # the reference for the text: the same model, the same audio, one pass. so what is measured
     # is the streaming, not the model.
     started = time.perf_counter()
-    offline = model.transcribe(audio, language=args.language, verbose=False)
+    # the same temperature=0 as the engine, or the reference itself moves between runs and
+    # every comparison below becomes noise
+    offline = model.transcribe(audio, language=args.language, verbose=False, temperature=0)
     offline_spent = time.perf_counter() - started
     offline_text = normalise(offline["text"])
     print(f"offline: {len(offline_text.split())} words in {offline_spent:.1f} s "
@@ -121,7 +123,9 @@ def run(args):
 
     live = Live(model, language=args.language, speakers=speakers, window=args.window,
                 step=args.step, settle=args.commit_delay, gap=args.gap,
-                recluster=args.recluster)
+                recluster=args.recluster, polish=not args.no_polish,
+                polish_context=args.polish_context,
+                polish_prompt=not args.no_polish_prompt)
 
     settled = []
     final_latencies = []
@@ -187,6 +191,10 @@ def run(args):
               f"last word (median), {latencies[-1]:.1f} s at worst")
     print(f"lag behind the stream     {lag_max:.1f} s at worst")
     print(f"tail shown then changed   {revisions} words")
+    if not args.no_polish:
+        improved = sum(1 for event in settled
+                       if normalise(event["text"]) != normalise(event.get("rough") or ""))
+        print(f"lines re-recognised       {len(settled)}, text changed in {improved}")
 
     if args.speakers:
         voices = sorted({piece.speaker for piece in live.pieces if piece.speaker})
@@ -238,6 +246,14 @@ def main(argv=None):
                              "later, and that is where several voices are")
     parser.add_argument("--minutes", type=float, default=0,
                         help="use only N minutes of the recording (default: all)")
+    parser.add_argument("--no-polish", action="store_true",
+                        help="do not recognise a finished line again as a whole — the "
+                             "comparison this was built to measure")
+    parser.add_argument("--polish-context", type=float, default=0.5,
+                        help="seconds of audio around a finished line when it is recognised "
+                             "again (default: 0.5)")
+    parser.add_argument("--no-polish-prompt", action="store_true",
+                        help="do not give the previous line to the model as a hint")
     parser.add_argument("--speakers", action="store_true",
                         help="also label speakers, and compare with offline diarizen")
     parser.add_argument("--speaker-distance", type=float, default=0.75,

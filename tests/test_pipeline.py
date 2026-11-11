@@ -765,7 +765,9 @@ class _ScriptedWhisper:
         self.calls = 0
 
     def transcribe(self, audio, language=None, verbose=False, word_timestamps=True,
-                   condition_on_previous_text=False):
+                   condition_on_previous_text=False, **whisper_options):
+        # **whisper_options because the engine passes what whisper takes — temperature, a
+        # prompt — and a stand-in must not care which of them arrive
         seconds = len(audio) / 16000
         self.calls += 1
         return {"segments": [{"words": [
@@ -775,8 +777,10 @@ class _ScriptedWhisper:
 
 
 scripted = _ScriptedWhisper()
+# polish=False here: re-recognising a finished line is measured separately below, and with a
+# stub that answers differently every call it would replace the very text under test
 live = Live(scripted, language="ru", speakers=None, window=8.0, step=1.0, settle=1.0,
-            recluster=0)
+            recluster=0, polish=False)
 seen = []
 for _ in range(4):
     seen.extend(live.push(np.zeros(16000, dtype="float32")))
@@ -802,9 +806,27 @@ check("no line is finished while the speaker keeps going",
 closing = live.finish()
 check("the stream ending finishes the line that was open",
       [(event["kind"], event["text"]) for event in closing],
-      [("settled", "settled2 settled3 settled4")])
+      [("settled", "settled2 settled3 settled4"), ("settled", "rough4")])
+check("finishing twice does not duplicate the last words", live.finish(), [])
 check("a line with no speaker says so rather than inventing one",
       closing[0]["speaker"], None)
+
+
+# re-recognising a finished line: the words of a live pass come from the edge of a sliding
+# window, where the model cannot hear how the phrase ends. a closed line is a whole phrase.
+# what has to hold is that its text is the second answer, with the first kept for comparison.
+polished = _ScriptedWhisper()
+second = Live(polished, language="ru", speakers=None, window=8.0, step=1.0, settle=1.0,
+              recluster=0, polish=True)
+for _ in range(4):
+    second.push(np.zeros(16000, dtype="float32"))
+line = second.finish()[0]
+check("a finished line is recognised again, as a whole",
+      polished.calls > scripted.calls, True)
+check("the line carries the second answer",
+      line["text"], "settled5")
+check("and keeps the first one, so the two can be compared",
+      line["rough"], "settled2 settled3 settled4")
 
 
 # what the terminal does with those events: the rough tail is redrawn in place, a finished line

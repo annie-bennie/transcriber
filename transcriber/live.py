@@ -46,6 +46,13 @@ SPEAKER_DISTANCE = 0.75
 # how often everything heard so far is clustered again. 0 turns it off, which is right for two
 # people: they are already at 95–100% without it and nothing has to be rewritten.
 RECLUSTER_SEC = 15.0
+# when a line is finished, its audio is recognised once more as a whole, with this much
+# context on each side. the words of a live pass come from the edge of a sliding window, where
+# the model cannot hear how the phrase ends; a closed line is a whole phrase, and the same
+# model does better on it. the cost is one more pass over a few seconds, on a line that is
+# already three seconds old.
+POLISH_CONTEXT_SEC = 0.5
+
 # only pieces at least this long decide where the clusters are: a shorter one gives a noisy
 # embedding, and clustering on those invents people.
 MIN_CLUSTER_SEC = 1.5
@@ -54,7 +61,7 @@ MIN_CLUSTER_SEC = 1.5
 class Piece:
     """A stretch of speech that has settled: the text will not change, the speaker may."""
 
-    __slots__ = ("start", "end", "text", "words", "speaker", "vector")
+    __slots__ = ("start", "end", "text", "words", "speaker", "vector", "rough")
 
     def __init__(self, start, end, text, words):
         self.start = start
@@ -63,10 +70,12 @@ class Piece:
         self.words = words
         self.speaker = None
         self.vector = None
+        self.rough = text
 
     def as_event(self, kind="settled"):
         return {"kind": kind, "start": round(self.start, 3), "end": round(self.end, 3),
-                "text": self.text, "speaker": self.speaker, "words": self.words}
+                "text": self.text, "speaker": self.speaker, "words": self.words,
+                "rough": self.rough}
 
 
 class Live:
@@ -78,7 +87,8 @@ class Live:
     """
 
     def __init__(self, recogniser, language="en", speakers=None, window=WINDOW_SEC,
-                 step=STEP_SEC, settle=SETTLE_SEC, gap=GAP_SEC, recluster=RECLUSTER_SEC):
+                 step=STEP_SEC, settle=SETTLE_SEC, gap=GAP_SEC, recluster=RECLUSTER_SEC,
+                 polish=True, polish_context=POLISH_CONTEXT_SEC, polish_prompt=True):
         self.recogniser = recogniser
         self.language = language
         self.speakers = speakers
@@ -87,6 +97,11 @@ class Live:
         self.settle = settle
         self.gap = gap
         self.recluster = recluster
+        self.polish = polish
+        self.polish_context = polish_context
+        # whisper takes the text before as a hint; a line rarely starts a new subject, and the
+        # previous line is exactly the context the sliding window could not give it
+        self.polish_prompt = polish_prompt
 
         self.buffer = None          # numpy array of everything pushed, at SAMPLE_RATE
         self.heard = 0.0            # seconds of audio pushed so far
@@ -96,6 +111,7 @@ class Live:
         self.pending = []           # settled words not yet closed into a piece
         self.last_settled_end = 0.0
         self.partial = ""
+        self.partial_words = []
 
     # ------------------------------------------------------------------ pushing audio in
     def push(self, samples):
@@ -116,6 +132,17 @@ class Live:
     def finish(self):
         """The stream has ended: whatever is still pending becomes final."""
         events = []
+        if self.buffer is not None and self.heard > self.last_pass:
+            self.last_pass = self.heard
+            events.extend(self._pass())
+        for word in self.partial_words:
+            if word["start"] < self.last_settled_end - 0.01:
+                continue
+            if self.pending and word["start"] - self.pending[-1][2] > self.gap:
+                events.append(self._close_piece())
+            self.pending.append((word["text"], word["start"], word["end"]))
+            self.last_settled_end = word["end"]
+        self.partial_words = []
         if self.pending:
             events.append(self._close_piece())
         if self.partial:
@@ -130,8 +157,12 @@ class Live:
         if len(chunk) < SAMPLE_RATE // 2:
             return []
 
+        # temperature=0: whisper's default is to re-decode with randomness when it dislikes
+        # a result, so the same audio gives different text from one pass to the next. live that
+        # shows up as a tail that flickers between readings, and in measurement it moves the
+        # baseline — a difference of a point or two then says nothing about anything.
         result = self.recogniser.transcribe(chunk, language=self.language, verbose=False,
-                                            word_timestamps=True,
+                                            word_timestamps=True, temperature=0,
                                             condition_on_previous_text=False)
         words = []
         for segment in result.get("segments") or []:
@@ -159,6 +190,7 @@ class Live:
         rough = [{"text": text, "start": round(start, 3), "end": round(end, 3)}
                  for text, start, end in words if end > horizon]
         tail = " ".join(word["text"] for word in rough).strip()
+        self.partial_words = rough
         if tail != self.partial:
             self.partial = tail
             events.append({"kind": "partial", "text": tail, "words": rough})
@@ -168,11 +200,48 @@ class Live:
             events.extend(self._relabel_now())
         return [event for event in events if event]
 
+    def _polish(self, start, end):
+        """The whole line, recognised again. returns text, or None if that failed."""
+        begin = max(0.0, start - self.polish_context)
+        stop = min(self.heard, end + self.polish_context)
+        chunk = self.buffer[int(begin * SAMPLE_RATE):int(stop * SAMPLE_RATE)]
+        if len(chunk) < SAMPLE_RATE // 2:
+            return None
+        prompt = self.pieces[-1].text if (self.polish_prompt and self.pieces) else None
+        try:
+            result = self.recogniser.transcribe(
+                chunk, language=self.language, verbose=False, word_timestamps=True,
+                temperature=0, condition_on_previous_text=False, initial_prompt=prompt)
+        except TypeError:
+            # a recogniser that does not take a prompt is still a recogniser
+            try:
+                result = self.recogniser.transcribe(
+                    chunk, language=self.language, verbose=False, word_timestamps=True,
+                    temperature=0, condition_on_previous_text=False)
+            except Exception:
+                return None
+        except Exception:
+            return None
+        words = []
+        for segment in result.get("segments") or []:
+            for word in segment.get("words") or []:
+                text = (word.get("word") or "").strip()
+                # the context is there to help the model, not to be quoted: only what falls
+                # inside the line itself is kept
+                middle = begin + (word["start"] + word["end"]) / 2
+                if text and start - 0.05 <= middle <= end + 0.05:
+                    words.append(text)
+        return " ".join(words).strip() or None
+
     def _close_piece(self):
         words = self.pending
         self.pending = []
-        piece = Piece(words[0][1], words[-1][2],
-                      " ".join(text for text, _, _ in words).strip(), len(words))
+        rough = " ".join(text for text, _, _ in words).strip()
+        text = rough
+        if self.polish:
+            text = self._polish(words[0][1], words[-1][2]) or rough
+        piece = Piece(words[0][1], words[-1][2], text, len(words))
+        piece.rough = rough
         if self.speakers is not None:
             audio = self.buffer[int(piece.start * SAMPLE_RATE):int(piece.end * SAMPLE_RATE)]
             piece.speaker, piece.vector = self.speakers.assign(audio)
