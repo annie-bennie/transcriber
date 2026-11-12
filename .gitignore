@@ -29,6 +29,8 @@ logs/
 
 # the plan is working notes, not documentation.
 PLAN.md
+/.local/
+/docs/roadmap.md
 
 # =====================================================================
 #  Media
