@@ -282,6 +282,12 @@ def main(argv=None):
     if not args.input:
         parser.error("give a media file, a folder or a url — or --check to test this machine")
 
+    if args.device and args.device.split(":")[0] == "cuda" and not args.rebuild_txt:
+        import torch
+        if not torch.cuda.is_available():
+            parser.exit(1, "CUDA was requested but is unavailable. Use --device cpu "
+                           "or enable GPU access (docker run --gpus all).\n")
+
     from_url = is_url(args.input)
     input_path = None
     if not from_url:

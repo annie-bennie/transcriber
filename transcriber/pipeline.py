@@ -214,7 +214,7 @@ class Transcriber:
             turns_path = Path(tmp) / "turns.json"
             sf.write(str(wav), audio, SAMPLE_RATE)
             command = [str(python), str(helper), "--input", str(wav),
-                       "--output", str(turns_path)]
+                       "--output", str(turns_path), "--device", self.device]
             if self.diarizen_model:
                 command += ["--model", self.diarizen_model]
             # subprocess.run would block with a frozen bar on screen for minutes, so the
@@ -225,7 +225,9 @@ class Transcriber:
             out_path = Path(tmp) / "stdout.log"
             err_path = Path(tmp) / "stderr.log"
             with open(out_path, "wb") as out_file, open(err_path, "wb") as err_file:
-                process = subprocess.Popen(command, stdout=out_file, stderr=err_file)
+                # DiariZen selects CUDA during construction, before pipeline.to().
+                env = {**os.environ, "CUDA_VISIBLE_DEVICES": ""} if self.device == "cpu" else None
+                process = subprocess.Popen(command, stdout=out_file, stderr=err_file, env=env)
                 try:
                     while process.poll() is None:
                         bar.tick()
@@ -244,7 +246,7 @@ class Transcriber:
             payload = json.loads(turns_path.read_text(encoding="utf-8"))
         turns = payload["turns"]
         self.diarize_model_used = f"diarizen:{payload['model']}"
-        log(f"  diarization done: {len(turns)} turns. {mem_snapshot()}")
+        log(f"  diarization done on {payload['device']}: {len(turns)} turns. {mem_snapshot()}")
         return turns
 
     def _load_diarization(self, hf_token):

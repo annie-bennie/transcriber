@@ -102,7 +102,7 @@ is long gone:
 |---|---|---|
 | `--model NAME` | `turbo` | whisper model: `tiny`, `base`, `small`, `medium`, `large-v3`, `turbo`. bigger is more accurate and slower |
 | `--language CODE` | `en` | language of the recording. this is the only setting about the audio |
-| `--device cuda\|cpu` | autodetect | where to compute |
+| `--device cuda\|cpu` | CUDA if available, otherwise CPU | `cpu` runs all models on CPU, including DiariZen. An explicit `cuda` requires CUDA access. In Docker, pass `--gpus all` to `docker run` to expose the GPU. |
 | `--no-word-timestamps` | off | skip word timestamps. about 40% faster, but speakers are assigned per whole segment and boundaries suffer |
 
 ## speaker separation

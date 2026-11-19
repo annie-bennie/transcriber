@@ -61,6 +61,7 @@ def main():
     parser = argparse.ArgumentParser(description="diarization through diarizen")
     parser.add_argument("--input", required=True, help="wav, mono, 16 kHz")
     parser.add_argument("--output", required=True, help="where to put the json with the turns")
+    parser.add_argument("--device", help="torch device (default: autodetect)")
     parser.add_argument("--model", default=DEFAULT_MODEL,
                         help=f"model (default: {DEFAULT_MODEL})")
     args = parser.parse_args()
@@ -71,17 +72,16 @@ def main():
     torch.serialization.add_safe_globals([Specifications, Problem, Resolution])
 
     pipeline = DiariZenPipeline.from_pretrained(args.model)
-    try:
-        pipeline.to("cuda" if torch.cuda.is_available() else "cpu")
-    except Exception:
-        pass
+    if args.device:
+        pipeline.to(torch.device(args.device))
 
     result = pipeline(str(Path(args.input)))
     turns = [[round(turn.start, 3), round(turn.end, 3), f"SPEAKER_{str(spk):0>2}"]
              for turn, _, spk in result.itertracks(yield_label=True)]
 
     Path(args.output).write_text(
-        json.dumps({"model": args.model, "turns": turns}, ensure_ascii=False),
+        json.dumps({"model": args.model, "device": str(pipeline.device), "turns": turns},
+                   ensure_ascii=False),
         encoding="utf-8")
     print(f"turns: {len(turns)}, speakers: {len({t[2] for t in turns})}", file=sys.stderr)
     return 0
