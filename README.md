@@ -3,53 +3,74 @@
 local transcription of meetings, lectures and interviews — with who spoke, what they said,
 and how it sounded.
 
-nothing leaves the machine. no api keys, no uploads.
+the recording stays on your machine. the first run downloads the models.
 
 ## first transcript
 
-Install Python 3.10–3.12 or `uv`, then [download and extract the project](https://github.com/annie-bennie/transcriber/archive/refs/heads/main.zip).
-Open a terminal in the folder containing `install.ps1` and `install.sh`.
-Choose the commands for your system. Replace `lecture.mp4` with the path to your
-recording and `ru` with its language code.
+you need python 3.10–3.12 or `uv`, which can fetch python for you.
+[download the project](https://github.com/annie-bennie/transcriber/archive/refs/heads/main.zip),
+unzip it and open a terminal in the folder with the install scripts.
+the example uses a russian recording. replace `class.mp4` with your file and
+`ru` with its language code.
 
-**Windows (PowerShell)**
+**windows (powershell)**
 
 ```powershell
 .\install.ps1
-.\transcribe.bat "lecture.mp4" --language ru
+.\transcribe.bat "class.mp4" --language ru
 ```
 
-If PowerShell reports that running scripts is disabled, use the
-[manual Windows installation](docs/install.md#manual-installation).
+if powershell says running scripts is disabled, follow the
+[manual installation](docs/install.md#manual-installation).
 
-**Linux**
+**linux**
 
 ```sh
 sh install.sh
-sh transcribe.sh "lecture.mp4" --language ru
+sh transcribe.sh "class.mp4" --language ru
 ```
 
-Run the installer once. Its final check shows the compute device and says
-`ready to run` when the required software is available. You can repeat it with
-`.\transcribe.bat --check` on Windows or `sh transcribe.sh --check` on Linux.
-The default is CUDA on a supported NVIDIA GPU and CPU otherwise. Add
-`--device cpu` to the transcription command to force CPU.
+the installer runs once and sets up whisper, diarizen and the emotion models in one
+environment. look for `ready to run` at the end. the torch line says `device: cuda`
+when a supported nvidia gpu is available, or `device: cpu` otherwise. to check again,
+run `.\transcribe.bat --check` or `sh transcribe.sh --check`. to use the cpu even
+with a card installed, add `--device cpu` to the transcription command.
 
-The first transcription downloads about 2.5 GB of models. When it finishes,
-open `transcripts/lecture_speakers.txt` next to the recording. If no speakers
-were identified, open `transcripts/lecture.txt`. The same folder contains
-`lecture.json` with the timestamps and measurements.
-
-For a reading copy with one paragraph per speaker change, add `--format lecture`.
-This writes `lecture_lecture.txt`. You can also export it from a saved transcript,
-for example `.\transcribe.bat "transcripts/lecture.json" --format lecture`.
-
-For Docker, manual installation or a recognition-only setup, see the
-[installation guide](docs/install.md).
+when the run finishes, open the `transcripts` folder next to your recording.
+`class_speakers.txt` is the transcript (`class.txt` if no speakers were found).
+`class.json` is the saved result you can draw other text formats from.
 
 ## what it produces
 
-one `.json` per file and a txt drawn from it — `<name>_speakers.txt` when speakers were separated, `<name>.txt` when they were not:
+### lecture text
+
+for a lecture or an interview you just want to read, add `--format lecture`.
+consecutive lines from one speaker become a paragraph. when another person speaks,
+a new paragraph starts. the words stay in their original order.
+
+```text
+SPEAKER_01: so what happened next
+
+SPEAKER_00: i honestly do not know
+```
+
+if you already have the json, you can write `transcripts/class_lecture.txt` straight
+from it. this also works after the recording has been moved or deleted.
+
+```powershell
+.\transcribe.bat "transcripts/class.json" --format lecture
+```
+
+on linux, use `sh transcribe.sh` with the same arguments. for a fresh recording,
+you can also skip measuring emotions when all you need is the text and speakers:
+
+```sh
+sh transcribe.sh "class.mp4" --language ru --format lecture --no-emotion
+```
+
+### detailed transcript
+
+the default txt keeps the time of each line, the speaker and the measurements:
 
 ```
 [SPEAKER_01 05:12-05:14] (aro +2.3σ | -19dB ↑7dB | pitch 254Hz ↑6st): so what happened next
@@ -101,13 +122,12 @@ across recordings and languages. the reasoning and the measurements are in
 
 ## requirements
 
-- python 3.10, 3.11 or 3.12 — and `./install.sh` (or `.\install.ps1` on windows) does the
-  rest: it picks the torch build for your card, installs everything, and checks the result
-- an nvidia gpu is strongly preferred; it runs on cpu, several times slower
-- about 2.5 GB for model weights, downloaded on first run
-- or none of the above but docker: [one image](docs/install.md#docker-instead), for cpu or an
-  nvidia card, and once the models are downloaded it runs with no network at all — checked
-  with `--network none`
+allow about 2.5 GB for the model weights in addition to the python environment.
+subsequent runs reuse the downloaded weights. a supported nvidia gpu speeds up all
+three model stages. the same command also runs on cpu.
+
+for a container install, the [docker instructions](docs/install.md#docker-instead)
+cover both the cpu and cuda builds and the volume that keeps the models between runs.
 
 ## speed
 
