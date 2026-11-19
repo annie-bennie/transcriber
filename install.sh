@@ -81,9 +81,7 @@ else
 fi
 
 echo
-"$PY" transcribe.py --check || true
+"$PY" transcribe.py --check
 echo
 echo "done. to use it:"
-echo "  $PY transcribe.py \"meeting.mp4\" --language ru"
-echo "or let the launchers find this environment:"
-echo "  export TRANSCRIBE_PYTHON=\"\$PWD/$PY\" && ./transcribe.sh \"meeting.mp4\""
+echo "  \"$PY\" transcribe.py \"meeting.mp4\" --language ru"

@@ -79,26 +79,29 @@ $ErrorActionPreference = "Stop"
 $index = "https://download.pytorch.org/whl/$variant"
 $py = Join-Path $Venv "Scripts\python.exe"
 
+function Invoke-InstallStep($exe, [string[]]$arguments) {
+    & $exe @arguments
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+}
+
 if ($uv) {
-    & uv venv --python 3.12 $Venv
+    Invoke-InstallStep uv @("venv", "--python", "3.12", $Venv)
     Write-Host "installing torch 2.8.0 ($variant) - the long part, a few gigabytes"
-    & uv pip install --python $py torch==2.8.0 torchaudio==2.8.0 --index-url $index
+    Invoke-InstallStep uv @("pip", "install", "--python", $py, "torch==2.8.0", "torchaudio==2.8.0", "--index-url", $index)
     Write-Host "installing everything else"
-    & uv pip install --python $py -r requirements.txt
+    Invoke-InstallStep uv @("pip", "install", "--python", $py, "-r", "requirements.txt")
 } else {
-    & $base.Exe @($base.Args + @("-m", "venv", $Venv))
-    & $py -m pip install --quiet --upgrade pip
+    Invoke-InstallStep $base.Exe @($base.Args + @("-m", "venv", $Venv))
+    Invoke-InstallStep $py @("-m", "pip", "install", "--quiet", "--upgrade", "pip")
     Write-Host "installing torch 2.8.0 ($variant) - the long part, a few gigabytes"
-    & $py -m pip install torch==2.8.0 torchaudio==2.8.0 --index-url $index
+    Invoke-InstallStep $py @("-m", "pip", "install", "torch==2.8.0", "torchaudio==2.8.0", "--index-url", $index)
     Write-Host "installing everything else"
-    & $py -m pip install -r requirements.txt
+    Invoke-InstallStep $py @("-m", "pip", "install", "-r", "requirements.txt")
 }
 
 Write-Host ""
 $ErrorActionPreference = "Continue"
-& $py transcribe.py --check
+Invoke-InstallStep $py @("transcribe.py", "--check")
 Write-Host ""
 Write-Host "done. to use it:"
-Write-Host "  $py transcribe.py `"meeting.mp4`" --language ru"
-Write-Host "or let the launchers find this environment:"
-Write-Host "  setx TRANSCRIBE_PYTHON `"$((Resolve-Path $py).Path)`"    # then open a new terminal"
+Write-Host "  & `"$py`" transcribe.py `"meeting.mp4`" --language ru"

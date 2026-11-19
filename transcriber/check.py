@@ -90,7 +90,7 @@ def free_gb(path):
 
 
 def collect(model_name="turbo", diarizen_python=None, *, diarize=True, dimensions=True,
-            diarize_model="diarizen"):
+            diarize_model="diarizen", device=None):
     """Every check, in the order a run would need them."""
     checks = []
 
@@ -113,16 +113,18 @@ def collect(model_name="turbo", diarizen_python=None, *, diarize=True, dimension
         checks.append(line(FAIL, "torch", f"not importable ({type(e).__name__})",
                            "see docs/install.md — torch comes first, at 2.8.0"))
     else:
-        if torch.cuda.is_available():
-            free, total = torch.cuda.mem_get_info()
-            card = (f"{torch.__version__} — {torch.cuda.get_device_name(0)}, "
-                    f"vram {free / 2 ** 30:.1f}/{total / 2 ** 30:.1f} GB free")
-            checks.append(line(OK, "torch", card))
-        else:
-            checks.append(line(WARN, "torch", f"{torch.__version__} — no card in use, "
-                                              f"cuda build {torch.version.cuda}",
-                               "on a machine with an nvidia card this means the wrong torch: "
-                               "reinstall it from the cu128 index"))
+        selected = device or ("cuda" if torch.cuda.is_available() else "cpu")
+        try:
+            target = torch.device(selected)
+            detail = f"{torch.__version__} — device: {target}"
+            if target.type == "cuda":
+                free, total = torch.cuda.mem_get_info(target)
+                detail += (f" ({torch.cuda.get_device_name(target)}, "
+                           f"vram {free / 2 ** 30:.1f}/{total / 2 ** 30:.1f} GB free)")
+            checks.append(line(OK, "torch", detail))
+        except (RuntimeError, ValueError, AssertionError) as e:
+            checks.append(line(FAIL, "torch", f"device {selected} unavailable: {e}",
+                               "use --device cpu or check GPU access"))
 
     # ---- ffmpeg: one on the PATH, or the static build that comes with the install -------
     from .audio import ffmpeg_executable

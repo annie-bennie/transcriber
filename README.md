@@ -5,10 +5,43 @@ and how it sounded.
 
 nothing leaves the machine. no api keys, no uploads.
 
-```bash
-./transcribe.sh "meeting.mp4"
-./transcribe.sh "https://www.youtube.com/watch?v=..."     # a video or a whole playlist
+## first transcript
+
+Install Python 3.10–3.12 or `uv`, then [download and extract the project](https://github.com/annie-bennie/transcriber/archive/refs/heads/main.zip).
+Open a terminal in the folder containing `install.ps1` and `install.sh`.
+Choose the commands for your system. Replace `lecture.mp4` with the path to your
+recording and `ru` with its language code.
+
+**Windows (PowerShell)**
+
+```powershell
+.\install.ps1
+.\transcribe.bat "lecture.mp4" --language ru
 ```
+
+If PowerShell reports that running scripts is disabled, use the
+[manual Windows installation](docs/install.md#manual-installation).
+
+**Linux**
+
+```sh
+sh install.sh
+sh transcribe.sh "lecture.mp4" --language ru
+```
+
+Run the installer once. Its final check shows the compute device and says
+`ready to run` when the required software is available. You can repeat it with
+`.\transcribe.bat --check` on Windows or `sh transcribe.sh --check` on Linux.
+The default is CUDA on a supported NVIDIA GPU and CPU otherwise. Add
+`--device cpu` to the transcription command to force CPU.
+
+The first transcription downloads about 2.5 GB of models. When it finishes,
+open `transcripts/lecture_speakers.txt` next to the recording. If no speakers
+were identified, open `transcripts/lecture.txt`. The same folder contains
+`lecture.json` with the timestamps and measurements.
+
+For Docker, manual installation or a recognition-only setup, see the
+[installation guide](docs/install.md).
 
 ## what it produces
 
@@ -54,7 +87,7 @@ across recordings and languages. the reasoning and the measurements are in
 
 ## documentation
 
-- [docs/install.md](docs/install.md) — installation, model access, the optional diarizen environment, docker
+- [docs/install.md](docs/install.md) — installation, model access, Docker and optional environments
 - [docs/usage.md](docs/usage.md) — every option, common combinations, resuming after a crash
 - [docs/output.md](docs/output.md) — json structure, txt marks, units of analysis
 - [docs/measurements.md](docs/measurements.md) — what the numbers mean and how far to trust them

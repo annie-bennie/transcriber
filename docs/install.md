@@ -9,38 +9,33 @@ emotion models. The Windows and Unix installers, the Docker build and the Python
 package all use `requirements.txt`. It includes the fork of `pyannote.audio` required
 by DiariZen. Install the matching PyTorch build first as shown below.
 
-For a local recording that only needs text and word timestamps, use the small
-recognition-only setup. In a source checkout, create and activate a Python 3.10–3.12
-virtual environment, then run these commands (CPU build):
+For the standard installation and your first recording, follow the
+[quick start](../README.md#first-transcript). The installer creates `.venv` and runs
+`--check`. To install CPU-only PyTorch, use `.\install.ps1 -Cpu` on Windows or
+`sh install.sh --cpu` on Linux. To choose another environment directory, pass
+`-Venv <path>` on Windows or `--venv <path>` on Linux.
 
-```sh
-python -m pip install torch==2.8.0+cpu --extra-index-url https://download.pytorch.org/whl/cpu -r requirements-core.txt
-python transcribe.py --check --no-diarize --no-emotion
-python transcribe.py "lecture.mp4" --language ru --no-diarize --no-emotion
+## manual installation
+
+Use Python 3.10, 3.11 or 3.12. DiariZen requires NumPy 1.26.4.
+
+On Windows, open PowerShell in the extracted project folder. These commands
+also work when PowerShell script execution is disabled. Use `cpu` in place of
+`cu128` for a CPU-only installation. Run each command after the previous one succeeds.
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install torch==2.8.0 torchaudio==2.8.0 --index-url https://download.pytorch.org/whl/cu128
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\transcribe.bat --check
+.\transcribe.bat "lecture.mp4" --language ru
 ```
 
-Whisper downloads its selected model on first use. To install the full setup with
-speaker separation and speech measurements, follow the instructions below.
-
-python 3.10, 3.11 or 3.12 — diarizen pins numpy 1.26.4, which has no build for 3.13.
-
-the short way — one command that does everything below and checks the result:
-
-```bash
-git clone https://github.com/annie-bennie/transcriber.git && cd transcriber
-./install.sh                  # windows: .\install.ps1
-```
-
-it finds a python between 3.10 and 3.12 — or uses `uv` to fetch one, if `uv` is installed — picks
-the torch build from whether an nvidia card is present, installs the rest, and finishes by running
-`--check`. `--cpu` forces the build without cuda, `--venv <path>` puts the environment elsewhere.
-
-the same thing by hand, which is also what the script does:
+On Linux, start by creating and activating the environment:
 
 ```bash
 git clone https://github.com/annie-bennie/transcriber.git && cd transcriber
 python -m venv .venv
-# windows: .venv\Scripts\activate
 source .venv/bin/activate
 ```
 
@@ -66,11 +61,11 @@ diarizen and its fork of pyannote are not on pypi, so they come from an archive 
 commit on github — this needs the network, not git. ffmpeg comes with the rest; one already on
 the PATH is used first.
 
-then check the card is seen — the one line that tells a gpu run from a slow cpu one before an
-hour of audio does:
+Check the installation from the activated environment. The torch line reports
+`device: cuda` or `device: cpu`.
 
 ```bash
-python -c "import torch; print(torch.__version__, torch.cuda.is_available())"
+python transcribe.py --check
 ```
 
 followed exactly as written on windows 11 with an rtx 5080: about 7 minutes for torch, 3 for
@@ -82,6 +77,17 @@ optional extras:
 pip install -e ".[voice]"   # jitter, shimmer, HNR
 pip install -e ".[bench]"   # public-dataset benchmarks, tools/benchmark.py
 pip install -e ".[url]"     # a youtube link or playlist as the input
+```
+
+## recognition only
+
+For a local recording that only needs text and word timestamps, create and activate
+a Python 3.10–3.12 environment in the source checkout and install the CPU build:
+
+```sh
+python -m pip install torch==2.8.0+cpu --extra-index-url https://download.pytorch.org/whl/cpu -r requirements-core.txt
+python transcribe.py --check --no-diarize --no-emotion
+python transcribe.py "lecture.mp4" --language ru --no-diarize --no-emotion
 ```
 
 ## docker instead

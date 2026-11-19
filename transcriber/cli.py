@@ -274,7 +274,7 @@ def main(argv=None):
         from .check import collect, ready, render
         checks = collect(args.model, args.diarizen_python or os.environ.get("DIARIZEN_PYTHON"),
                          diarize=not args.no_diarize,
-                         diarize_model=args.diarize_model,
+                         diarize_model=args.diarize_model, device=args.device,
                          dimensions=not (args.no_emotion or args.no_emotion_dimensions))
         print(render(checks))
         return 0 if ready(checks) else 1
