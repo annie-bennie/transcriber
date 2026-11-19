@@ -4,6 +4,7 @@
 the txt is a view, never a source. everything here can be regenerated with --rebuild-txt,
 which is why nothing is stored only in this format.
 """
+from itertools import groupby
 from pathlib import Path
 
 from .analysis import format_delta_db, format_delta_semitones, format_z
@@ -271,6 +272,18 @@ def render_dialogue_report(state: dict) -> list:
 SPEAKERS_SUFFIX = "_speakers"
 
 
+def render_lecture(state, drop_suspect=False):
+    """Join consecutive segments by speaker, retaining the order of the recording."""
+    spoken = ((seg.get("speaker"), " ".join(seg["text"].split()))
+              for seg in state["segments"]
+              if seg["text"].strip() and not (drop_suspect and seg.get("suspect")))
+    paragraphs = []
+    for speaker, group in groupby(spoken, key=lambda item: item[0]):
+        text = " ".join(words for _, words in group)
+        paragraphs.append(f"{speaker}: {text}" if speaker else text)
+    return "\n\n".join(paragraphs) + ("\n" if paragraphs else "")
+
+
 def transcript_path(state: dict, output_dir: Path, base_name: str) -> Path:
     """Where the txt goes: `<name>_speakers.txt` when speakers were found."""
     suffix = SPEAKERS_SUFFIX if (state or {}).get("speakers") else ""
@@ -282,6 +295,15 @@ def write_transcript_txt(state: dict, path: Path, drop_suspect: bool = False):
     shown = sum(1 for s in state["segments"] if not (drop_suspect and s.get("suspect")))
     log(f"  ✓ saved: {path.name} ({shown} segments)")
     _warn_stale_sibling(path)
+
+
+def write_output(state, output_dir, base_name, drop_suspect=False, text_format="detailed"):
+    if text_format == "lecture":
+        path = output_dir / f"{base_name}_lecture.txt"
+        write_text_atomic(path, render_lecture(state, drop_suspect))
+        log(f"  ✓ saved: {path.name}")
+    else:
+        write_transcript_txt(state, transcript_path(state, output_dir, base_name), drop_suspect)
 
 
 def _warn_stale_sibling(path: Path):
@@ -298,7 +320,8 @@ def _warn_stale_sibling(path: Path):
         log(f"    note: {other.name} is left over from an earlier run and is now stale")
 
 
-def write_combined(output_dir: Path, media_files, states, no_combined=False):
+def write_combined(output_dir: Path, media_files, states, no_combined=False,
+                   text_format="detailed", drop_suspect=False):
     """One continuous text for a whole folder — also entirely from the json.
 
     states of files this run did not touch have already been read from disk, so the combined
@@ -309,11 +332,15 @@ def write_combined(output_dir: Path, media_files, states, no_combined=False):
     parts = []
     for f in media_files:
         state = states.get(f)
-        text = plain_text(state) if state else ""
+        if not state:
+            continue
+        text = (render_lecture(state, drop_suspect).rstrip() if text_format == "lecture"
+                else plain_text(state))
         if text:
             parts.append(f"=== {f.name} ===\n{text}")
     if not parts:
         return
-    combined_path = output_dir / "full_transcript.txt"
+    combined_path = output_dir / ("full_transcript_lecture.txt" if text_format == "lecture"
+                                  else "full_transcript.txt")
     write_text_atomic(combined_path, "\n\n".join(parts))
     log(f"✓ combined file ({len(parts)} of {len(media_files)}): {combined_path}")

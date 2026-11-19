@@ -40,6 +40,10 @@ open `transcripts/lecture_speakers.txt` next to the recording. If no speakers
 were identified, open `transcripts/lecture.txt`. The same folder contains
 `lecture.json` with the timestamps and measurements.
 
+For a reading copy with one paragraph per speaker change, add `--format lecture`.
+This writes `lecture_lecture.txt`. You can also export it from a saved transcript,
+for example `.\transcribe.bat "transcripts/lecture.json" --format lecture`.
+
 For Docker, manual installation or a recognition-only setup, see the
 [installation guide](docs/install.md).
 

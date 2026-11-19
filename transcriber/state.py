@@ -93,6 +93,8 @@ def load_state(path: Path):
     try:
         with open(path, encoding="utf-8") as f:
             state = json.load(f)
+        if not isinstance(state, dict):
+            raise ValueError("expected a transcript object")
     except FileNotFoundError:
         return None
     except Exception as e:

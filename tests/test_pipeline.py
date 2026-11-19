@@ -39,7 +39,7 @@ from transcriber.diarizen import interpreter
 from transcriber.emotion import DEVIATION_GUIDE, EMOTION_DIMENSION_GUIDE, EMOTION_DIMENSIONS
 from transcriber.logging import software_versions
 from transcriber.network import hub_reachable, prefer_local_models
-from transcriber.render import transcript_path
+from transcriber.render import render_lecture, transcript_path
 from transcriber.sources import is_url
 from transcriber.speakers import (
     build_emotion_units,
@@ -577,6 +577,19 @@ check("a url is recognised", [is_url(v) for v in
 # =====================================================================
 
 out = Path("out")
+lecture = {"segments": [
+    {"text": "  First\n sentence.", "speaker": "A"},
+    {"text": "Second.  ", "speaker": "A"},
+    {"text": "Question?", "speaker": "B", "suspect": True},
+    {"text": "Answer.", "speaker": "A"},
+    {"text": "   "},
+    {"text": "Unlabelled."},
+]}
+check("lecture groups consecutive speakers and normalizes whitespace",
+      render_lecture(lecture), "A: First sentence. Second.\n\nB: Question?\n\nA: Answer.\n\nUnlabelled.\n")
+check("lecture filters suspect text before grouping paragraphs",
+      render_lecture(lecture, True), "A: First sentence. Second. Answer.\n\nUnlabelled.\n")
+check("silent lecture is empty", render_lecture({"segments": []}), "")
 check("a transcript with speakers is named apart",
       transcript_path({"speakers": ["SPEAKER_00", "SPEAKER_01"]}, out, "meeting").name,
       "meeting_speakers.txt")

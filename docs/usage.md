@@ -135,8 +135,23 @@ which engine to pick is in [diarization.md](diarization.md).
 
 ## output and rebuilding
 
+Use `--format lecture` to join consecutive segments from the same speaker into a
+paragraph. It preserves the words and their order, normalizes whitespace and omits
+timestamps, measurements and the dialogue report. Unlabelled speech appears as plain
+text. To skip emotion analysis on a new recording, also pass `--no-emotion`.
+
+```sh
+./transcribe.sh "class.wav" --language ru --format lecture --no-emotion
+./transcribe.sh "transcripts/class.json" --format lecture
+```
+
+Both commands write `transcripts/class_lecture.txt`. The JSON export uses the saved
+speaker labels and needs no audio or models. For a folder of recordings the combined
+lecture text is `full_transcript_lecture.txt`.
+
 | option | default | what for |
 |---|---|---|
+| `--format detailed\|lecture` | detailed | choose the report or speaker paragraphs |
 | `--playlist-limit N` | all | take only the first N items of a playlist or search |
 | `--rebuild-txt` | off | rebuild everything derived from existing json. needs no models and no audio |
 | `--drop-suspect` | off | leave flagged segments out of the txt. they stay in the json either way |

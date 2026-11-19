@@ -13,7 +13,7 @@ from .emotion import DEFAULT_EMOTION_DIM_MODEL
 from .logging import close_log_file, log, log_env, open_log_file
 from .network import prefer_local_models
 from .pipeline import Transcriber
-from .render import transcript_path, write_combined, write_transcript_txt
+from .render import write_combined, write_output
 from .sources import enumerate_items, existing_result, fetch_one, is_url
 from .speakers import describe_suspects
 from .state import (
@@ -139,6 +139,8 @@ def build_parser():
                        help="batch size for the measurement models")
 
     group = parser.add_argument_group("output and rebuilding")
+    group.add_argument("--format", dest="text_format", choices=("detailed", "lecture"),
+                       default="detailed", help="TXT layout: detailed report or lecture paragraphs by speaker")
     group.add_argument("--rebuild-txt", action="store_true",
                        help="rebuild everything derived from existing json files — "
                             "segments, turns, flags and txt. needs no models and no audio")
@@ -214,9 +216,7 @@ def run_from_url(args, output_dir: Path) -> int:
                 media_files.append(entry)
                 skipped += 1
                 log(f"  already transcribed — {state_progress(state)}")
-                write_transcript_txt(
-                    state, transcript_path(state, output_dir, done.stem),
-                    args.drop_suspect)
+                write_output(state, output_dir, done.stem, args.drop_suspect, args.text_format)
                 continue
 
         media_path = fetch_one(item, output_dir)
@@ -231,6 +231,7 @@ def run_from_url(args, output_dir: Path) -> int:
                 keep_audio=args.keep_audio, resume=not args.overwrite,
                 checkpoint_every=args.checkpoint_every,
                 drop_suspect=args.drop_suspect, rediarize=args.rediarize,
+                text_format=args.text_format,
             )
             media_files.append(entry)
         except Exception as e:
@@ -253,7 +254,8 @@ def run_from_url(args, output_dir: Path) -> int:
             except OSError:
                 pass
 
-    write_combined(output_dir, media_files, states, args.no_combined)
+    write_combined(output_dir, media_files, states, args.no_combined,
+                   args.text_format, args.drop_suspect)
     if freed:
         log(f"downloaded audio removed as it went, {freed / 2 ** 20:.0f} MB total "
             f"— keep it with --keep-audio")
@@ -282,12 +284,6 @@ def main(argv=None):
     if not args.input:
         parser.error("give a media file, a folder or a url — or --check to test this machine")
 
-    if args.device and args.device.split(":")[0] == "cuda" and not args.rebuild_txt:
-        import torch
-        if not torch.cuda.is_available():
-            parser.exit(1, "CUDA was requested but is unavailable. Use --device cpu "
-                           "or enable GPU access (docker run --gpus all).\n")
-
     from_url = is_url(args.input)
     input_path = None
     if not from_url:
@@ -295,6 +291,26 @@ def main(argv=None):
         if not input_path.exists():
             print(f"path not found: {input_path}")
             return 1
+
+    if (args.text_format == "lecture" and input_path and input_path.is_file()
+            and input_path.suffix.lower() == ".json"):
+        state = load_state(input_path)
+        if state is None or not (state["segments"] or state["asr_segments"]
+                                 or state["stages"].get("transcribe") == "done"):
+            log("no transcript segments found in the JSON")
+            return 1
+        if not state["segments"]:
+            rebuild_derived(state)
+        output_dir = Path(args.output_dir).resolve() if args.output_dir else input_path.parent
+        output_dir.mkdir(parents=True, exist_ok=True)
+        write_output(state, output_dir, input_path.stem, args.drop_suspect, args.text_format)
+        return 0
+
+    if args.device and args.device.split(":")[0] == "cuda" and not args.rebuild_txt:
+        import torch
+        if not torch.cuda.is_available():
+            parser.exit(1, "CUDA was requested but is unavailable. Use --device cpu "
+                           "or enable GPU access (docker run --gpus all).\n")
 
     if args.output_dir:
         output_dir = Path(args.output_dir).resolve()
@@ -369,11 +385,10 @@ def main(argv=None):
                     f"looks invented: {describe_suspects(state['segments'])}")
             else:
                 log("    no raw whisper output in the json — only the txt was redrawn")
-            write_transcript_txt(
-                state, transcript_path(state, output_dir, media_path.stem),
-                args.drop_suspect)
+            write_output(state, output_dir, media_path.stem, args.drop_suspect, args.text_format)
             rebuilt += 1
-        write_combined(output_dir, media_files, states, args.no_combined)
+        write_combined(output_dir, media_files, states, args.no_combined,
+                       args.text_format, args.drop_suspect)
         log(f"txt rebuilt: {rebuilt} of {len(media_files)}")
         return 0 if rebuilt else 1
 
@@ -388,14 +403,12 @@ def main(argv=None):
         log(f"already done, skipping ({len(ready)}):")
         for f in ready:
             log(f"  · {f.name}")
+            write_output(states[f], output_dir, f.stem, args.drop_suspect, args.text_format)
     if not pending:
         log("every transcript is in place. recompute from scratch with --overwrite")
         # the txt may be missing or stale — it is derived, and redrawing is cheap.
-        for f in ready:
-            write_transcript_txt(
-                states[f], transcript_path(states[f], output_dir, f.stem),
-                args.drop_suspect)
-        write_combined(output_dir, media_files, states, args.no_combined)
+        write_combined(output_dir, media_files, states, args.no_combined,
+                       args.text_format, args.drop_suspect)
         return 0
     log(f"to process ({len(pending)}):")
     for f in pending:
@@ -414,6 +427,7 @@ def main(argv=None):
                 media_path, output_dir, language=args.language, keep_audio=args.keep_audio,
                 resume=not args.overwrite, checkpoint_every=args.checkpoint_every,
                 drop_suspect=args.drop_suspect, rediarize=args.rediarize,
+                text_format=args.text_format,
             )
         except Exception as e:
             failed.append(media_path.name)
@@ -425,7 +439,8 @@ def main(argv=None):
                 torch.cuda.empty_cache()
             gc.collect()
 
-    write_combined(output_dir, media_files, states, args.no_combined)
+    write_combined(output_dir, media_files, states, args.no_combined,
+                   args.text_format, args.drop_suspect)
 
     if failed:
         log(f"⚠ not processed: {len(failed)} — {', '.join(failed)}")

@@ -32,7 +32,7 @@ from .config import (
 )
 from .emotion import DEFAULT_EMOTION_DIM_MODEL, DimensionalEmotion
 from .logging import Progress, log, mem_snapshot, software_versions
-from .render import transcript_path, write_transcript_txt
+from .render import write_output
 from .speakers import (
     build_emotion_units,
     build_segments,
@@ -562,7 +562,7 @@ class Transcriber:
     # ------------------------------------------------------------ the run itself
     def process_file(self, media_path: Path, output_dir: Path, language=DEFAULT_LANGUAGE,
                      keep_audio=False, resume=True, checkpoint_every=200,
-                     drop_suspect=False, rediarize=False):
+                     drop_suspect=False, rediarize=False, text_format="detailed"):
         """Compute what is missing, appending to the json after every stage."""
         import torch
 
@@ -596,8 +596,7 @@ class Transcriber:
 
         if not (todo_transcribe or todo_diarize or todo_analyze or keep_audio):
             log("  everything was computed earlier — only redrawing the txt from the json.")
-            write_transcript_txt(state, transcript_path(state, output_dir, base_name),
-                             drop_suspect)
+            write_output(state, output_dir, base_name, drop_suspect, text_format)
             return state
 
         log(f"  decoding audio... {mem_snapshot()}")
@@ -732,6 +731,5 @@ class Transcriber:
             save_state(json_path, state)
 
         del audio
-        write_transcript_txt(state, transcript_path(state, output_dir, base_name),
-                             drop_suspect)
+        write_output(state, output_dir, base_name, drop_suspect, text_format)
         return state

@@ -15,6 +15,9 @@ changing that (turning `--no-diarize` on or off) leaves the other file behind fr
 earlier run. nothing is deleted for you — the txt is yours and cheap to redraw — but the log
 says which file has gone stale.
 
+With `--format lecture`, the TXT is named `<name>_lecture.txt`. Each speaker change
+starts a new paragraph. This format contains only the speaker labels and spoken text.
+
 ## units: segment, utterance, turn
 
 three words appear everywhere and mean different things. the same minute of recording is
