@@ -19,7 +19,7 @@ ARG TORCH=cpu
 # the gpu build keeps it because torch itself depends on it there.
 RUN --mount=from=ghcr.io/astral-sh/uv:0.12.12,source=/uv,target=/bin/uv \
     --mount=type=bind,source=requirements.txt,target=/tmp/requirements.txt \
-    export UV_NO_CACHE=1 UV_COMPILE_BYTECODE=1 UV_HTTP_TIMEOUT=300 \
+    export UV_NO_CACHE=1 UV_COMPILE_BYTECODE=1 UV_HTTP_TIMEOUT=300 UV_CONCURRENT_DOWNLOADS=2 \
  && uv venv /opt/venv \
  && uv pip install --python /opt/venv/bin/python torch==2.8.0 torchaudio==2.8.0 \
         --index-url https://download.pytorch.org/whl/${TORCH} \
