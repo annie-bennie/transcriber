@@ -89,7 +89,7 @@ def free_gb(path):
         return None
 
 
-def collect(model_name="turbo", diarizen_python=None):
+def collect(model_name="turbo", diarizen_python=None, *, diarize=True, dimensions=True):
     """Every check, in the order a run would need them."""
     checks = []
 
@@ -152,44 +152,51 @@ def collect(model_name="turbo", diarizen_python=None):
                                                 f"unknown model name {model_name!r}"))
 
     # ---- speaker separation ------------------------------------------------------------
-    pyannote = version_of("pyannote.audio")
-    if installed("diarizen"):
-        checks.append(line(OK, "diarizen",
-                           f"in this environment, with pyannote.audio {pyannote}"))
-    elif diarizen_python:
-        checks.append(line(OK, "diarizen", f"a separate environment: {diarizen_python}"))
-    elif pyannote and pyannote.startswith("4"):
-        checks.append(line(WARN, "diarizen", "not installed — speakers will be labelled by "
-                                             f"pyannote {pyannote}",
-                           "diarizen is more accurate on real recordings: "
-                           "see docs/install.md"))
-    else:
-        checks.append(line(FAIL, "speaker separation", "neither diarizen nor pyannote.audio",
-                           "pip install -r requirements.txt, or run with --no-diarize"))
+    if diarize:
+        pyannote = version_of("pyannote.audio")
+        if installed("diarizen"):
+            checks.append(line(OK, "diarizen",
+                               f"in this environment, with pyannote.audio {pyannote}"))
+        elif diarizen_python:
+            checks.append(line(OK, "diarizen", f"a separate environment: {diarizen_python}"))
+        elif pyannote and pyannote.startswith("4"):
+            checks.append(line(WARN, "diarizen", "absent — speakers use "
+                                                 f"pyannote {pyannote}",
+                               "diarizen is more accurate on real recordings: "
+                               "see docs/install.md"))
+        else:
+            checks.append(line(FAIL, "speaker separation", "missing diarizen and pyannote",
+                               "pip install -r requirements.txt, or run with --no-diarize"))
 
     # ---- the emotion scales ------------------------------------------------------------
-    if installed("transformers"):
-        checks.append(line(OK, "transformers",
-                           f"{version_of('transformers')} — the emotion scales"))
-    else:
-        checks.append(line(FAIL, "transformers", "not installed",
-                           "pip install -r requirements.txt, or run with --no-emotion"))
+    if dimensions:
+        if installed("transformers"):
+            checks.append(line(OK, "transformers",
+                               f"{version_of('transformers')} — the emotion scales"))
+        else:
+            checks.append(line(FAIL, "transformers", "not installed",
+                               "pip install -r requirements.txt, or run with --no-emotion"))
 
     # ---- weights already on disk -------------------------------------------------------
-    repos = cached_repos()
-    if repos is None:
-        checks.append(line(WARN, "model cache", "cannot be read",
-                           "huggingface_hub is part of the install"))
-    else:
-        missing = [f"{name}" for repo, name in CACHED_MODELS.items() if repo not in repos]
-        if not missing:
-            checks.append(line(OK, "model cache",
-                               "every model of the default run is downloaded"))
+    if diarize or dimensions:
+        repos = cached_repos()
+        if repos is None:
+            checks.append(line(WARN, "model cache", "cannot be read",
+                               "huggingface_hub is part of the install"))
         else:
-            checks.append(line(WARN, "model cache",
-                               "not downloaded yet: " + ", ".join(missing),
-                               "the first run fetches about 1 GB more; it needs the network, "
-                               "but no hugging face token"))
+            missing = [
+                name for repo, name in CACHED_MODELS.items()
+                if repo not in repos and (
+                    dimensions if repo.startswith("audeering/") else diarize
+                )
+            ]
+            if not missing:
+                checks.append(line(OK, "model cache",
+                                   "every model of the selected run is downloaded"))
+            else:
+                checks.append(line(WARN, "model cache",
+                                   "not downloaded yet: " + ", ".join(missing),
+                                   "the selected weights are downloaded on the first run"))
 
     # ---- room for all of that ----------------------------------------------------------
     temp_free = free_gb(tempfile.gettempdir())

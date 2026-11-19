@@ -4,6 +4,19 @@
 
 ## the environment
 
+For a local recording that only needs text and word timestamps, use the small
+recognition-only setup. In a source checkout, create and activate a Python 3.10–3.12
+virtual environment, then run these commands (CPU build):
+
+```sh
+python -m pip install torch==2.8.0+cpu --extra-index-url https://download.pytorch.org/whl/cpu -r requirements-core.txt
+python transcribe.py --check --no-diarize --no-emotion
+python transcribe.py "lecture.mp4" --language ru --no-diarize --no-emotion
+```
+
+Whisper downloads its selected model on first use. To install the full setup with
+speaker separation and speech measurements, follow the instructions below.
+
 one environment holds everything: whisper, diarizen for speaker separation, the emotion scales
 and a static ffmpeg. it is the environment the docker image is built from, so the two behave
 alike.

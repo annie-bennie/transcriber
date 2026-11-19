@@ -272,7 +272,9 @@ def main(argv=None):
     if args.check:
         # before anything heavy: this is the question "will a run work here at all"
         from .check import collect, ready, render
-        checks = collect(args.model, args.diarizen_python or os.environ.get("DIARIZEN_PYTHON"))
+        checks = collect(args.model, args.diarizen_python or os.environ.get("DIARIZEN_PYTHON"),
+                         diarize=not args.no_diarize,
+                         dimensions=not (args.no_emotion or args.no_emotion_dimensions))
         print(render(checks))
         return 0 if ready(checks) else 1
 

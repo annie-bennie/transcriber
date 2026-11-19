@@ -1,0 +1,4 @@
+# Install the hardware-specific torch 2.8.0 build first (see docs/install.md).
+openai-whisper==20250625
+numpy==1.26.4
+imageio-ffmpeg==0.6.0
