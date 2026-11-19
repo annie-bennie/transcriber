@@ -84,7 +84,8 @@ class _PyannoteBar:
 class Transcriber:
     def __init__(self, model_name=DEFAULT_WHISPER_MODEL, device=None, diarize=True,
                  hf_token=None, num_speakers=None, min_speakers=None, max_speakers=None,
-                 emotion=True, emotion_batch=4, diarize_batch=None, diarize_model="auto",
+                 emotion=True, emotion_batch=4, diarize_batch=None,
+                 diarize_model=DIARIZE_MODEL_DIARIZEN,
                  diarizen_model=None, diarizen_python=None, speaker_refine=True,
                  embedding_model=DEFAULT_EMBEDDING_MODEL, word_timestamps=True,
                  emotion_unit_target=EMOTION_UNIT_TARGET, voice_quality=False,
@@ -652,7 +653,7 @@ class Transcriber:
                 turns = self._diarize_diarizen(audio)
                 if turns is None:
                     if self.diarize_model == DIARIZE_MODEL_DIARIZEN:
-                        log("  ⚠ diarizen unavailable — falling back to pyannote")
+                        raise RuntimeError("DiariZen failed. See the diagnostic above.")
                     elif self._diarizen_python() is None:
                         log("  diarizen is not installed, labelling with pyannote. with it "
                             "speakers come out noticeably better — see docs/diarization.md")

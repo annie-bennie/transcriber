@@ -89,7 +89,8 @@ def free_gb(path):
         return None
 
 
-def collect(model_name="turbo", diarizen_python=None, *, diarize=True, dimensions=True):
+def collect(model_name="turbo", diarizen_python=None, *, diarize=True, dimensions=True,
+            diarize_model="diarizen"):
     """Every check, in the order a run would need them."""
     checks = []
 
@@ -154,18 +155,21 @@ def collect(model_name="turbo", diarizen_python=None, *, diarize=True, dimension
     # ---- speaker separation ------------------------------------------------------------
     if diarize:
         pyannote = version_of("pyannote.audio")
-        if installed("diarizen"):
+        if diarize_model not in ("diarizen", "auto"):
+            checks.append(line(OK if pyannote else FAIL, "pyannote",
+                               pyannote or "missing for the selected speaker model"))
+        elif installed("diarizen"):
             checks.append(line(OK, "diarizen",
                                f"in this environment, with pyannote.audio {pyannote}"))
         elif diarizen_python:
             checks.append(line(OK, "diarizen", f"a separate environment: {diarizen_python}"))
-        elif pyannote and pyannote.startswith("4"):
+        elif diarize_model == "auto" and pyannote and pyannote.startswith("4"):
             checks.append(line(WARN, "diarizen", "absent — speakers use "
                                                  f"pyannote {pyannote}",
                                "diarizen is more accurate on real recordings: "
                                "see docs/install.md"))
         else:
-            checks.append(line(FAIL, "speaker separation", "missing diarizen and pyannote",
+            checks.append(line(FAIL, "speaker separation", "DiariZen unavailable",
                                "pip install -r requirements.txt, or run with --no-diarize"))
 
     # ---- the emotion scales ------------------------------------------------------------

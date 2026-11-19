@@ -164,6 +164,8 @@ def state_matches_request(state, args) -> bool:
         return False
     if old.get("word_timestamps") != (not args.no_word_timestamps):
         return False
+    if not args.no_diarize and old.get("diarize_request") != args.diarize_model:
+        return False
     if (old.get("num_speakers"), old.get("min_speakers"), old.get("max_speakers")) != \
             (args.num_speakers, args.min_speakers, args.max_speakers):
         return False

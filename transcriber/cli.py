@@ -98,7 +98,7 @@ def build_parser():
 
     group = parser.add_argument_group("speaker separation")
     group.add_argument("--no-diarize", action="store_true", help="do not separate speakers")
-    group.add_argument("--diarize-model", default="auto",
+    group.add_argument("--diarize-model", default="diarizen",
                        help="auto (diarizen if installed, else pyannote 3.1), diarizen, "
                             "or a pyannote model name on huggingface")
     group.add_argument("--diarizen-model", default=None, metavar="MODEL",
@@ -274,6 +274,7 @@ def main(argv=None):
         from .check import collect, ready, render
         checks = collect(args.model, args.diarizen_python or os.environ.get("DIARIZEN_PYTHON"),
                          diarize=not args.no_diarize,
+                         diarize_model=args.diarize_model,
                          dimensions=not (args.no_emotion or args.no_emotion_dimensions))
         print(render(checks))
         return 0 if ready(checks) else 1

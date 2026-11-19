@@ -41,7 +41,7 @@ interface for anything downstream.
 |---|---|
 | decoding | [ffmpeg](https://ffmpeg.org/) |
 | speech recognition | [whisper](https://github.com/openai/whisper), word-level timestamps |
-| speaker separation | [pyannote](https://github.com/pyannote/pyannote-audio) or [diarizen](https://github.com/BUTSpeechFIT/DiariZen) — which is better depends on the recording |
+| speaker separation | [DiariZen](https://github.com/BUTSpeechFIT/DiariZen) in the standard installation; see [speaker benchmarks](docs/diarization.md) for the optional pyannote engine |
 | emotion | [audeering MSP-Dim](https://huggingface.co/audeering/wav2vec2-large-robust-12-ft-emotion-msp-dim) — arousal, dominance, valence |
 | loudness, pitch, dialogue statistics | arithmetic over the waveform, no models |
 | voice quality (optional) | [praat](https://github.com/YannickJadoul/Parselmouth) — jitter, shimmer, HNR |
@@ -121,8 +121,8 @@ the code is MIT — see `LICENSE`. the models are not, and two of them are non-c
 
 so the pipeline **as configured by default is non-commercial**, whatever the code licence
 says — the restriction comes from the weights, not from here. running it without the
-emotion scales (`--no-emotion`) and in the optional pyannote 4 environment rather than on
-diarizen leaves only permissive models; pyannote's weights are gated on hugging face and
+emotion scales (`--no-emotion`) and selecting `--diarize-model pyannote/speaker-diarization-3.1`
+in the optional pyannote 4 environment leaves only permissive models; pyannote's weights are gated on hugging face and
 need their conditions accepted first.
 
 ## acknowledgements

@@ -50,7 +50,7 @@ build pypi offers, which on windows has no cuda at all.
 # nvidia, rtx 50xx (blackwell) included
 pip install torch==2.8.0 torchaudio==2.8.0 --index-url https://download.pytorch.org/whl/cu128
 # no gpu
-pip install torch==2.8.0 torchaudio==2.8.0 --index-url https://download.pytorch.org/whl/cpu
+pip install torch==2.8.0+cpu torchaudio==2.8.0+cpu --extra-index-url https://download.pytorch.org/whl/cpu
 ```
 
 then everything else, in one step:

@@ -2,9 +2,9 @@
 
 [← back to readme](../README.md)
 
-two engines. **pyannote** ships in the main environment and works out of the box.
-**diarizen** installs separately and is noticeably better on some recordings. there is no
-universal winner — it depends on how the audio was captured.
+The standard installation uses **DiariZen**, which depends on a fork of pyannote.audio
+in the same environment. An explicit pyannote model name selects the alternative
+engine for comparisons or recordings that benefit from it.
 
 | recording | take | why |
 |---|---|---|
@@ -19,7 +19,7 @@ deciding *where* speech is: on lapel recordings it misses 27.7% of it.
 ## choosing
 
 ```bash
-./transcribe.sh "meeting.mp4"                                  # auto: diarizen, else pyannote
+./transcribe.sh "meeting.mp4"                                  # default: DiariZen
 ./transcribe.sh "meeting.mp4" --diarize-model diarizen          # diarizen only
 ./transcribe.sh "meeting.mp4" --diarize-model pyannote/speaker-diarization-3.1
 ./transcribe.sh "meeting.mp4" --diarize-model pyannote/speaker-diarization-community-1
@@ -36,7 +36,7 @@ changing the engine on an already processed file costs one diarization, not a fu
 so 3.1 is the pyannote default. plda is taken from community-1 separately and improves
 refinement for both.
 
-installing diarizen: [install.md](install.md#diarizen--optional-better-on-some-recordings).
+installing diarizen: [install.md](install.md).
 
 ## benchmark
 

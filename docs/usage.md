@@ -109,7 +109,7 @@ is long gone:
 
 | option | default | what for |
 |---|---|---|
-| `--diarize-model` | `auto` | `auto`, `diarizen`, or a pyannote model name on huggingface |
+| `--diarize-model` | `diarizen` | `diarizen`, explicit fallback mode `auto`, or a pyannote model name |
 | `--diarizen-python PATH` | — | interpreter of the diarizen environment |
 | `--diarizen-model NAME` | `diarizen-wavlm-large-s80-md-v2` | a different diarizen model |
 | `--num-speakers N` | — | exact number of participants, when known. helps pyannote noticeably |
