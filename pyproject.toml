@@ -19,27 +19,7 @@ classifiers = [
     "Topic :: Multimedia :: Sound/Audio :: Speech",
 ]
 
-# the same environment as requirements.txt. torch and torchaudio are not listed: they have
-# to be installed first, at 2.8.0 and from the index that matches the hardware — see
-# docs/install.md.
-dependencies = [
-    "openai-whisper==20250625",
-    "pyannote.audio @ https://github.com/BUTSpeechFIT/DiariZen/archive/844f5555b0a98acd0931511fc641a8c5b8ba92c7.zip#subdirectory=pyannote-audio",
-    "diarizen @ https://github.com/BUTSpeechFIT/DiariZen/archive/844f5555b0a98acd0931511fc641a8c5b8ba92c7.zip",
-    "numpy==1.26.4",
-    "accelerate==1.6.0",
-    "h5py",
-    "librosa",
-    "scikit-learn",
-    "pyyaml",
-    "toml",
-    "transformers==4.50.0",
-    "huggingface_hub==0.36.0",
-    "soundfile>=0.12",
-    "psutil>=5.9",
-    "tqdm",
-    "imageio-ffmpeg==0.6.0",
-]
+dynamic = ["dependencies"]
 
 [project.optional-dependencies]
 # voice quality: jitter, shimmer, HNR. off by default, see docs/measurements.md.
@@ -57,6 +37,9 @@ Repository = "https://github.com/annie-bennie/transcriber"
 
 [tool.setuptools]
 packages = ["transcriber", "transcriber._workers"]
+
+[tool.setuptools.dynamic]
+dependencies = {file = ["requirements.txt"]}
 
 [tool.ruff]
 line-length = 95

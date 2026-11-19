@@ -17,6 +17,9 @@
 #
 # ffmpeg comes with imageio-ffmpeg below. one already on the PATH is used first.
 
+# The installer selects the wheel index first. These pins also apply to package installs.
+torch==2.8.0
+torchaudio==2.8.0
 openai-whisper==20250625
 
 # speaker separation: diarizen and the pyannote-audio 3.1.1 fork it is built on. neither is on
@@ -25,14 +28,10 @@ openai-whisper==20250625
 pyannote.audio @ https://github.com/BUTSpeechFIT/DiariZen/archive/844f5555b0a98acd0931511fc641a8c5b8ba92c7.zip#subdirectory=pyannote-audio
 diarizen @ https://github.com/BUTSpeechFIT/DiariZen/archive/844f5555b0a98acd0931511fc641a8c5b8ba92c7.zip
 
-# what diarizen imports but does not declare. numpy and accelerate at its own pins: numpy 2
-# breaks it, a newer accelerate changes the api.
+# DiariZen reads TOML during inference. Its pyannote fork loads diarizen.utils, which
+# imports accelerate even when using a pretrained model.
 numpy==1.26.4
 accelerate==1.6.0
-h5py
-librosa
-scikit-learn
-pyyaml
 toml
 
 # the emotion scales. transformers 4.x, not 5: 5 needs huggingface_hub 1.x, and the pyannote

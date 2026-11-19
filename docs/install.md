@@ -4,6 +4,11 @@
 
 ## the environment
 
+The standard installation uses one Python environment for Whisper, DiariZen and the
+emotion models. The Windows and Unix installers, the Docker build and the Python
+package all use `requirements.txt`. It includes the fork of `pyannote.audio` required
+by DiariZen. Install the matching PyTorch build first as shown below.
+
 For a local recording that only needs text and word timestamps, use the small
 recognition-only setup. In a source checkout, create and activate a Python 3.10–3.12
 virtual environment, then run these commands (CPU build):
@@ -16,10 +21,6 @@ python transcribe.py "lecture.mp4" --language ru --no-diarize --no-emotion
 
 Whisper downloads its selected model on first use. To install the full setup with
 speaker separation and speech measurements, follow the instructions below.
-
-one environment holds everything: whisper, diarizen for speaker separation, the emotion scales
-and a static ffmpeg. it is the environment the docker image is built from, so the two behave
-alike.
 
 python 3.10, 3.11 or 3.12 — diarizen pins numpy 1.26.4, which has no build for 3.13.
 
