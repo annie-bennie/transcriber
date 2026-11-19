@@ -226,7 +226,8 @@ class Transcriber:
             err_path = Path(tmp) / "stderr.log"
             with open(out_path, "wb") as out_file, open(err_path, "wb") as err_file:
                 # DiariZen selects CUDA during construction, before pipeline.to().
-                env = {**os.environ, "CUDA_VISIBLE_DEVICES": ""} if self.device == "cpu" else None
+                env = ({**os.environ, "CUDA_VISIBLE_DEVICES": ""}
+                       if self.device == "cpu" else None)
                 process = subprocess.Popen(command, stdout=out_file, stderr=err_file, env=env)
                 try:
                     while process.poll() is None:

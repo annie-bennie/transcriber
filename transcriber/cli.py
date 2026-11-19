@@ -140,7 +140,8 @@ def build_parser():
 
     group = parser.add_argument_group("output and rebuilding")
     group.add_argument("--format", dest="text_format", choices=("detailed", "lecture"),
-                       default="detailed", help="TXT layout: detailed report or lecture paragraphs by speaker")
+                       default="detailed",
+                       help="TXT layout: detailed report or lecture paragraphs by speaker")
     group.add_argument("--rebuild-txt", action="store_true",
                        help="rebuild everything derived from existing json files — "
                             "segments, turns, flags and txt. needs no models and no audio")
@@ -385,7 +386,8 @@ def main(argv=None):
                     f"looks invented: {describe_suspects(state['segments'])}")
             else:
                 log("    no raw whisper output in the json — only the txt was redrawn")
-            write_output(state, output_dir, media_path.stem, args.drop_suspect, args.text_format)
+            write_output(state, output_dir, media_path.stem,
+                         args.drop_suspect, args.text_format)
             rebuilt += 1
         write_combined(output_dir, media_files, states, args.no_combined,
                        args.text_format, args.drop_suspect)

@@ -303,7 +303,8 @@ def write_output(state, output_dir, base_name, drop_suspect=False, text_format="
         write_text_atomic(path, render_lecture(state, drop_suspect))
         log(f"  ✓ saved: {path.name}")
     else:
-        write_transcript_txt(state, transcript_path(state, output_dir, base_name), drop_suspect)
+        path = transcript_path(state, output_dir, base_name)
+        write_transcript_txt(state, path, drop_suspect)
 
 
 def _warn_stale_sibling(path: Path):

@@ -28,8 +28,10 @@ it is part of runtime integration, not a benchmark.
 ## Checks and data
 
 `tests/test_pipeline.py` exercises logic without model downloads or a GPU.
-The current CI workflow in `.github/workflows/tests.yml` runs it with NumPy and also
-runs `ruff check .` on Python 3.10 and 3.12 on Linux.
+On pushes to main and pull requests, CI installs the CPU package in a clean environment
+on Linux (Python 3.10) and Windows (Python 3.12). It runs `pip check`, the logic tests,
+Ruff and the installed CLI. `tests/test_installed_cli.py` exports a synthetic transcript
+in both text formats without audio or model weights.
 
 Recordings, transcripts, model weights, credentials, generated reports, and local
 working notes do not belong in commits. Keep private working material under `.local/`.

@@ -586,7 +586,8 @@ lecture = {"segments": [
     {"text": "Unlabelled."},
 ]}
 check("lecture groups consecutive speakers and normalizes whitespace",
-      render_lecture(lecture), "A: First sentence. Second.\n\nB: Question?\n\nA: Answer.\n\nUnlabelled.\n")
+      render_lecture(lecture),
+      "A: First sentence. Second.\n\nB: Question?\n\nA: Answer.\n\nUnlabelled.\n")
 check("lecture filters suspect text before grouping paragraphs",
       render_lecture(lecture, True), "A: First sentence. Second. Answer.\n\nUnlabelled.\n")
 check("silent lecture is empty", render_lecture({"segments": []}), "")
