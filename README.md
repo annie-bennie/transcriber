@@ -8,7 +8,7 @@ the recording stays on your machine. the first run downloads the models.
 ## first transcript
 
 you need python 3.10–3.12 or `uv`, which can fetch python for you.
-[download the project](https://github.com/annie-bennie/transcriber/archive/refs/heads/main.zip),
+[download v0.6.0](https://github.com/annie-bennie/transcriber/archive/refs/tags/v0.6.0.zip),
 unzip it and open a terminal in the folder with the install scripts.
 the example uses a russian recording. replace `class.mp4` with your file and
 `ru` with its language code.
