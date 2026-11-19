@@ -56,7 +56,7 @@ transcribe = "transcriber.cli:run"
 Repository = "https://github.com/annie-bennie/transcriber"
 
 [tool.setuptools]
-packages = ["transcriber"]
+packages = ["transcriber", "transcriber._workers"]
 
 [tool.ruff]
 line-length = 95

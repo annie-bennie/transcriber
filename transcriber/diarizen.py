@@ -65,4 +65,4 @@ def interpreter(explicit=None, environ=None, root=None, exists=None, importable=
 def helper(root=None):
     """The script the interpreter above is given: it prints turns as json and exits."""
     root = project_root() if root is None else Path(root)
-    return root / "tools" / "diarize_diarizen.py"
+    return root / "transcriber" / "_workers" / "diarize_diarizen.py"

@@ -200,7 +200,8 @@ class Transcriber:
         python = self._diarizen_python()
         if python is None:
             return None
-        helper = Path(__file__).resolve().parent.parent / "tools" / "diarize_diarizen.py"
+        from .diarizen import helper as diarizen_helper
+        helper = diarizen_helper()
         if not helper.exists():
             log(f"  ⚠ {helper.name} not found — skipping diarizen")
             return None
