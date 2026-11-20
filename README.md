@@ -71,11 +71,14 @@ gpu, use the cuda 12.8 build:
 python -m pip install torch==2.8.0 torchaudio==2.8.0 --index-url https://download.pytorch.org/whl/cu128
 ```
 
-for a cpu installation, use this command instead:
+<details>
+<summary>cpu-only machines: use this torch command instead</summary>
 
 ```sh
 python -m pip install torch==2.8.0+cpu torchaudio==2.8.0+cpu --extra-index-url https://download.pytorch.org/whl/cpu
 ```
+
+</details>
 
 then install the release wheel and run the check. pip fetches the remaining
 dependencies. the model weights download on the first transcription.
@@ -85,6 +88,10 @@ python -m pip install "https://github.com/annie-bennie/transcriber/releases/down
 transcribe --check
 transcribe "class.mp4" --language ru
 ```
+
+with cuda available, the check prints `device: cuda` and the card name.
+transcription uses that gpu automatically. if cuda is unavailable at startup,
+the default is `device: cpu`.
 
 if you already downloaded the `.whl`, pass its local path to `python -m pip install`
 in place of the url. while the environment is active, `transcribe` works from any
