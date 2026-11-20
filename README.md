@@ -7,6 +7,11 @@ the recording stays on your machine. the first run downloads the models.
 
 ## first transcript
 
+the [v0.6.0 release](https://github.com/annie-bennie/transcriber/releases/tag/v0.6.0)
+includes the source zip and a python wheel. the install scripts below pick the torch
+build for your machine. for a standalone `transcribe` command, see
+[install from the wheel](#install-from-the-wheel).
+
 you need python 3.10–3.12 or `uv`, which can fetch python for you.
 [download v0.6.0](https://github.com/annie-bennie/transcriber/archive/refs/tags/v0.6.0.zip),
 unzip it and open a terminal in the folder with the install scripts.
@@ -39,6 +44,51 @@ with a card installed, add `--device cpu` to the transcription command.
 when the run finishes, open the `transcripts` folder next to your recording.
 `class_speakers.txt` is the transcript (`class.txt` if no speakers were found).
 `class.json` is the saved result you can draw other text formats from.
+
+## install from the wheel
+
+with python 3.10–3.12 installed, create an environment in a folder of your choice.
+the wheel works without a copy of the source tree.
+
+**windows (powershell)**
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+```
+
+**linux**
+
+```sh
+python3 -m venv .venv
+. .venv/bin/activate
+```
+
+in the active environment, install torch for your hardware. for a supported nvidia
+gpu, use the cuda 12.8 build:
+
+```sh
+python -m pip install torch==2.8.0 torchaudio==2.8.0 --index-url https://download.pytorch.org/whl/cu128
+```
+
+for a cpu installation, use this command instead:
+
+```sh
+python -m pip install torch==2.8.0+cpu torchaudio==2.8.0+cpu --extra-index-url https://download.pytorch.org/whl/cpu
+```
+
+then install the release wheel and run the check. pip fetches the remaining
+dependencies. the model weights download on the first transcription.
+
+```sh
+python -m pip install "https://github.com/annie-bennie/transcriber/releases/download/v0.6.0/transcriber-0.6.0-py3-none-any.whl"
+transcribe --check
+transcribe "class.mp4" --language ru
+```
+
+if you already downloaded the `.whl`, pass its local path to `python -m pip install`
+in place of the url. while the environment is active, `transcribe` works from any
+folder and takes the same arguments as the launchers below.
 
 ## what it produces
 
